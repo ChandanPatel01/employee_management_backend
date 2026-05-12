@@ -3,12 +3,15 @@ package com.example.employeemanagement.employee;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @Transactional
 public class EmployeeService {
 
+	private final SecureRandom secureRandom = new SecureRandom();
 	private final EmployeeRepository employeeRepository;
 
 	public EmployeeService(EmployeeRepository employeeRepository) {
@@ -36,6 +39,7 @@ public class EmployeeService {
 		}
 
 		employee.setId(null);
+		employee.setEmployeeCode(generateEmployeeCode(employee));
 		return employeeRepository.save(employee);
 	}
 
@@ -52,7 +56,14 @@ public class EmployeeService {
 		employee.setJobTitle(updatedEmployee.getJobTitle());
 		employee.setSalary(updatedEmployee.getSalary());
 		employee.setHireDate(updatedEmployee.getHireDate());
+		employee.setDateOfBirth(updatedEmployee.getDateOfBirth());
+		employee.setGender(updatedEmployee.getGender());
+		employee.setMaritalStatus(updatedEmployee.getMaritalStatus());
+		employee.setPhotoUrl(updatedEmployee.getPhotoUrl());
 		employee.setStatus(updatedEmployee.getStatus());
+		if (employee.getEmployeeCode() == null || employee.getEmployeeCode().isBlank()) {
+			employee.setEmployeeCode(generateEmployeeCode(employee));
+		}
 
 		return employeeRepository.save(employee);
 	}
@@ -63,5 +74,22 @@ public class EmployeeService {
 		}
 
 		employeeRepository.deleteById(id);
+	}
+
+	private String generateEmployeeCode(Employee employee) {
+		String prefix = initials(employee.getFirstName(), employee.getLastName());
+		String employeeCode;
+
+		do {
+			employeeCode = prefix + String.format("%04d", secureRandom.nextInt(10_000));
+		} while (employeeRepository.existsByEmployeeCode(employeeCode));
+
+		return employeeCode;
+	}
+
+	private String initials(String firstName, String lastName) {
+		String first = firstName == null || firstName.isBlank() ? "E" : firstName.trim().substring(0, 1);
+		String last = lastName == null || lastName.isBlank() ? "M" : lastName.trim().substring(0, 1);
+		return (first + last).toUpperCase(Locale.ROOT);
 	}
 }

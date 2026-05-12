@@ -9,10 +9,11 @@ Select the `Employee Management Local` environment before running requests.
 
 Run order:
 
-1. `Create Employee`
-2. `Get All Employees`
-3. `Get Employee By Id`
-4. `Update Employee`
-5. `Delete Employee`
+1. `Signup` or `Login`
+2. `Create Employee`
+3. `Get All Employees`
+4. `Get Employee By Id`
+5. `Update Employee`
+6. `Delete Employee`
 
-The `Create Employee` request automatically saves the returned `id` into the `employeeId` environment variable.
+The auth requests automatically save the returned JWT into the `authToken` environment variable. The `Create Employee` request automatically saves the returned `id` into the `employeeId` environment variable.

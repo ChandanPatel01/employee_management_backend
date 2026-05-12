@@ -26,12 +26,12 @@ public class EmployeeController {
 	}
 
 	@GetMapping
-	public List<Employee> getEmployees(@RequestParam(required = false) String department) {
+	public List<Employee> getEmployees(@RequestParam(name = "department", required = false) String department) {
 		return employeeService.getEmployees(department);
 	}
 
 	@GetMapping("/{id}")
-	public Employee getEmployee(@PathVariable Long id) {
+	public Employee getEmployee(@PathVariable("id") Long id) {
 		return employeeService.getEmployee(id);
 	}
 
@@ -42,13 +42,13 @@ public class EmployeeController {
 	}
 
 	@PutMapping("/{id}")
-	public Employee updateEmployee(@PathVariable Long id, @Valid @RequestBody Employee employee) {
+	public Employee updateEmployee(@PathVariable("id") Long id, @Valid @RequestBody Employee employee) {
 		return employeeService.updateEmployee(id, employee);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void deleteEmployee(@PathVariable Long id) {
+	public void deleteEmployee(@PathVariable("id") Long id) {
 		employeeService.deleteEmployee(id);
 	}
 }

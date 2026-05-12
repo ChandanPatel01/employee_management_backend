@@ -1,11 +1,15 @@
 package com.example.employeemanagement.employee;
 
+import com.example.employeemanagement.auth.AppUserRepository;
+import com.example.employeemanagement.auth.AuthRequest;
+import com.example.employeemanagement.auth.SignupRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -33,14 +37,21 @@ class EmployeeControllerIntegrationTests {
 	@Autowired
 	private EmployeeRepository employeeRepository;
 
+	@Autowired
+	private AppUserRepository appUserRepository;
+
 	@BeforeEach
 	void setUp() {
 		employeeRepository.deleteAll();
+		appUserRepository.deleteAll();
 	}
 
 	@Test
 	void createEmployeeReturnsCreatedEmployee() throws Exception {
+		String authorization = authorizationHeader();
+
 		mockMvc.perform(post("/api/employees")
+						.header(HttpHeaders.AUTHORIZATION, authorization)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(employee("Ada", "Lovelace", "ada@example.com", "Engineering"))))
 				.andExpect(status().isCreated())
@@ -54,11 +65,14 @@ class EmployeeControllerIntegrationTests {
 
 	@Test
 	void getEmployeesCanFilterByDepartmentIgnoringCase() throws Exception {
+		String authorization = authorizationHeader();
 		employeeRepository.save(employee("Ada", "Lovelace", "ada@example.com", "Engineering"));
 		employeeRepository.save(employee("Grace", "Hopper", "grace@example.com", "Engineering"));
 		employeeRepository.save(employee("Mary", "Jackson", "mary@example.com", "Finance"));
 
-		mockMvc.perform(get("/api/employees").param("department", "engineering"))
+		mockMvc.perform(get("/api/employees")
+						.header(HttpHeaders.AUTHORIZATION, authorization)
+						.param("department", "engineering"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(2)))
 				.andExpect(jsonPath("$[0].department").value("Engineering"))
@@ -67,9 +81,11 @@ class EmployeeControllerIntegrationTests {
 
 	@Test
 	void getEmployeeByIdReturnsEmployee() throws Exception {
+		String authorization = authorizationHeader();
 		Employee savedEmployee = employeeRepository.save(employee("Ada", "Lovelace", "ada@example.com", "Engineering"));
 
-		mockMvc.perform(get("/api/employees/{id}", savedEmployee.getId()))
+		mockMvc.perform(get("/api/employees/{id}", savedEmployee.getId())
+						.header(HttpHeaders.AUTHORIZATION, authorization))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(savedEmployee.getId()))
 				.andExpect(jsonPath("$.email").value("ada@example.com"));
@@ -77,6 +93,7 @@ class EmployeeControllerIntegrationTests {
 
 	@Test
 	void updateEmployeeReturnsUpdatedEmployee() throws Exception {
+		String authorization = authorizationHeader();
 		Employee savedEmployee = employeeRepository.save(employee("Ada", "Lovelace", "ada@example.com", "Engineering"));
 		Employee updatedEmployee = employee("Ada", "Byron", "ada.byron@example.com", "Research");
 		updatedEmployee.setJobTitle("Principal Engineer");
@@ -84,6 +101,7 @@ class EmployeeControllerIntegrationTests {
 		updatedEmployee.setStatus(EmploymentStatus.ON_LEAVE);
 
 		mockMvc.perform(put("/api/employees/{id}", savedEmployee.getId())
+						.header(HttpHeaders.AUTHORIZATION, authorization)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(updatedEmployee)))
 				.andExpect(status().isOk())
@@ -97,23 +115,28 @@ class EmployeeControllerIntegrationTests {
 
 	@Test
 	void deleteEmployeeRemovesEmployee() throws Exception {
+		String authorization = authorizationHeader();
 		Employee savedEmployee = employeeRepository.save(employee("Ada", "Lovelace", "ada@example.com", "Engineering"));
 
-		mockMvc.perform(delete("/api/employees/{id}", savedEmployee.getId()))
+		mockMvc.perform(delete("/api/employees/{id}", savedEmployee.getId())
+						.header(HttpHeaders.AUTHORIZATION, authorization))
 				.andExpect(status().isNoContent());
 
-		mockMvc.perform(get("/api/employees/{id}", savedEmployee.getId()))
+		mockMvc.perform(get("/api/employees/{id}", savedEmployee.getId())
+						.header(HttpHeaders.AUTHORIZATION, authorization))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.message").value("Employee with id " + savedEmployee.getId() + " was not found"));
 	}
 
 	@Test
 	void createEmployeeWithInvalidPayloadReturnsValidationErrors() throws Exception {
+		String authorization = authorizationHeader();
 		Employee invalidEmployee = employee("", "", "not-an-email", "");
 		invalidEmployee.setSalary(new BigDecimal("-1.00"));
 		invalidEmployee.setHireDate(null);
 
 		mockMvc.perform(post("/api/employees")
+						.header(HttpHeaders.AUTHORIZATION, authorization)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(invalidEmployee)))
 				.andExpect(status().isBadRequest())
@@ -128,13 +151,44 @@ class EmployeeControllerIntegrationTests {
 
 	@Test
 	void createEmployeeWithDuplicateEmailReturnsConflict() throws Exception {
+		String authorization = authorizationHeader();
 		employeeRepository.save(employee("Ada", "Lovelace", "ada@example.com", "Engineering"));
 
 		mockMvc.perform(post("/api/employees")
+						.header(HttpHeaders.AUTHORIZATION, authorization)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(employee("Grace", "Hopper", "ada@example.com", "Engineering"))))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.message").value("Employee email already exists: ada@example.com"));
+	}
+
+	@Test
+	void employeeEndpointsRequireJwt() throws Exception {
+		mockMvc.perform(get("/api/employees"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.message").value("Missing bearer token"));
+	}
+
+	@Test
+	void signupAndLoginReturnJwt() throws Exception {
+		SignupRequest signupRequest = new SignupRequest("Test Admin", "admin@example.com", "password123");
+
+		mockMvc.perform(post("/api/auth/signup")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(signupRequest)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.token").isNotEmpty())
+				.andExpect(jsonPath("$.tokenType").value("Bearer"))
+				.andExpect(jsonPath("$.user.email").value("admin@example.com"));
+
+		AuthRequest loginRequest = new AuthRequest("admin@example.com", "password123");
+
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(loginRequest)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.token").isNotEmpty())
+				.andExpect(jsonPath("$.user.name").value("Test Admin"));
 	}
 
 	private Employee employee(String firstName, String lastName, String email, String department) {
@@ -148,5 +202,21 @@ class EmployeeControllerIntegrationTests {
 		employee.setHireDate(LocalDate.of(2024, 1, 15));
 		employee.setStatus(EmploymentStatus.ACTIVE);
 		return employee;
+	}
+
+	private String authorizationHeader() throws Exception {
+		String email = "tester" + System.nanoTime() + "@example.com";
+		SignupRequest signupRequest = new SignupRequest("Test Admin", email, "password123");
+
+		String response = mockMvc.perform(post("/api/auth/signup")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(signupRequest)))
+				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		String token = objectMapper.readTree(response).get("token").asText();
+		return "Bearer " + token;
 	}
 }
