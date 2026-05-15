@@ -4,6 +4,8 @@ import com.example.employeemanagement.upload.EmployeePhotoStorageService;
 import com.example.employeemanagement.upload.UploadException;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class DatabaseSchemaInitializer implements ApplicationRunner {
 
 	private final DataSource dataSource;
@@ -34,6 +37,7 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 		try (Connection connection = dataSource.getConnection()) {
 			String database = connection.getMetaData().getDatabaseProductName().toLowerCase();
 			if (database.contains("mysql") || database.contains("mariadb")) {
+				ensureUserRoleColumn(connection);
 				migrateBase64Photos(connection);
 				if (!columnExists(connection, "employees", "employee_code")) {
 					jdbcTemplate.execute("ALTER TABLE employees ADD COLUMN employee_code VARCHAR(32)");
@@ -45,6 +49,14 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 						""");
 			}
 		}
+	}
+
+	private void ensureUserRoleColumn(Connection connection) throws Exception {
+		if (!columnExists(connection, "app_users", "role")) {
+			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'USER'");
+		}
+
+		jdbcTemplate.execute("UPDATE app_users SET role = 'USER' WHERE role IS NULL OR role = ''");
 	}
 
 	private void migrateBase64Photos(Connection connection) throws Exception {

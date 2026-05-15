@@ -43,8 +43,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 		try {
 			JwtService.JwtClaims claims = jwtService.validate(authorization.substring(7));
+			if (claims.role() != UserRole.ADMIN) {
+				forbidden(response, "Access denied. Only admin users can access this management portal.");
+				return;
+			}
+
 			request.setAttribute("authenticatedUserEmail", claims.email());
 			request.setAttribute("authenticatedUserId", claims.userId());
+			request.setAttribute("authenticatedUserRole", claims.role().name());
 			filterChain.doFilter(request, response);
 		} catch (JwtService.JwtValidationException exception) {
 			unauthorized(response, exception.getMessage());
@@ -67,6 +73,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				Map.of());
 
 		response.setStatus(HttpStatus.UNAUTHORIZED.value());
+		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+		objectMapper.writeValue(response.getWriter(), error);
+	}
+
+	private void forbidden(HttpServletResponse response, String message) throws IOException {
+		ApiError error = new ApiError(
+				Instant.now(),
+				HttpStatus.FORBIDDEN.value(),
+				HttpStatus.FORBIDDEN.getReasonPhrase(),
+				message,
+				Map.of());
+
+		response.setStatus(HttpStatus.FORBIDDEN.value());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 		objectMapper.writeValue(response.getWriter(), error);
 	}

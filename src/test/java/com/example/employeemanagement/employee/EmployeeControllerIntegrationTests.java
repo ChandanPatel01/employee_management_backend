@@ -3,6 +3,7 @@ package com.example.employeemanagement.employee;
 import com.example.employeemanagement.auth.AppUserRepository;
 import com.example.employeemanagement.auth.AuthRequest;
 import com.example.employeemanagement.auth.SignupRequest;
+import com.example.employeemanagement.auth.UserRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -225,10 +226,21 @@ class EmployeeControllerIntegrationTests {
 		String email = "tester" + System.nanoTime() + "@example.com";
 		SignupRequest signupRequest = new SignupRequest("Test Admin", email, "password123");
 
-		String response = mockMvc.perform(post("/api/auth/signup")
+		mockMvc.perform(post("/api/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(signupRequest)))
-				.andExpect(status().isCreated())
+				.andExpect(status().isCreated());
+
+		appUserRepository.findByEmail(email).ifPresent((user) -> {
+			user.setRole(UserRole.ADMIN);
+			appUserRepository.save(user);
+		});
+
+		AuthRequest loginRequest = new AuthRequest(email, "password123");
+		String response = mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(loginRequest)))
+				.andExpect(status().isOk())
 				.andReturn()
 				.getResponse()
 				.getContentAsString();

@@ -40,6 +40,7 @@ public class JwtService {
 				"sub", user.getEmail(),
 				"uid", user.getId(),
 				"name", user.getName(),
+				"role", user.getRole().name(),
 				"iat", now,
 				"exp", now + expiresInSeconds);
 
@@ -70,11 +71,20 @@ public class JwtService {
 
 		Object subject = payload.get("sub");
 		Object userId = payload.get("uid");
-		if (!(subject instanceof String email) || email.isBlank() || !(userId instanceof Number id)) {
+		Object roleClaim = payload.get("role");
+		if (!(subject instanceof String email)
+				|| email.isBlank()
+				|| !(userId instanceof Number id)
+				|| !(roleClaim instanceof String role)
+				|| role.isBlank()) {
 			throw new JwtValidationException("Invalid token claims");
 		}
 
-		return new JwtClaims(id.longValue(), email);
+		try {
+			return new JwtClaims(id.longValue(), email, UserRole.valueOf(role));
+		} catch (IllegalArgumentException exception) {
+			throw new JwtValidationException("Invalid token role");
+		}
 	}
 
 	public long getExpiresInSeconds() {
@@ -109,7 +119,7 @@ public class JwtService {
 		}
 	}
 
-	public record JwtClaims(long userId, String email) {
+	public record JwtClaims(long userId, String email, UserRole role) {
 	}
 
 	public static class JwtValidationException extends RuntimeException {

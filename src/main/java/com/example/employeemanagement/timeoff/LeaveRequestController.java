@@ -39,7 +39,7 @@ public class LeaveRequestController {
 	}
 
 	@PutMapping("/{id}/decision")
-	public LeaveRequest updateDecision(@PathVariable("id") Long id, @Valid @RequestBody LeaveDecisionRequest request) {
+	public LeaveDecisionResponse updateDecision(@PathVariable("id") Long id, @Valid @RequestBody LeaveDecisionRequest request) {
 		return leaveRequestService.updateDecision(id, request);
 	}
 

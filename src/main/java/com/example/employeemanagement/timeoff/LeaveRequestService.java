@@ -15,10 +15,15 @@ public class LeaveRequestService {
 
 	private final LeaveRequestRepository leaveRequestRepository;
 	private final EmployeeService employeeService;
+	private final LeaveNotificationEmailService leaveNotificationEmailService;
 
-	public LeaveRequestService(LeaveRequestRepository leaveRequestRepository, EmployeeService employeeService) {
+	public LeaveRequestService(
+			LeaveRequestRepository leaveRequestRepository,
+			EmployeeService employeeService,
+			LeaveNotificationEmailService leaveNotificationEmailService) {
 		this.leaveRequestRepository = leaveRequestRepository;
 		this.employeeService = employeeService;
+		this.leaveNotificationEmailService = leaveNotificationEmailService;
 	}
 
 	@Transactional(readOnly = true)
@@ -53,7 +58,7 @@ public class LeaveRequestService {
 		return leaveRequestRepository.save(leaveRequest);
 	}
 
-	public LeaveRequest updateDecision(Long id, LeaveDecisionRequest request) {
+	public LeaveDecisionResponse updateDecision(Long id, LeaveDecisionRequest request) {
 		LeaveRequest leaveRequest = leaveRequestRepository.findById(id)
 				.orElseThrow(() -> new LeaveNotFoundException(id));
 
@@ -61,7 +66,10 @@ public class LeaveRequestService {
 		leaveRequest.setDecisionReason(clean(request.reason()));
 		leaveRequest.setDecidedAt(Instant.now());
 
-		return leaveRequestRepository.save(leaveRequest);
+		LeaveRequest savedLeaveRequest = leaveRequestRepository.saveAndFlush(leaveRequest);
+		boolean emailSent = leaveNotificationEmailService.sendDecisionEmail(savedLeaveRequest);
+
+		return new LeaveDecisionResponse(savedLeaveRequest, true, emailSent);
 	}
 
 	public void deleteLeave(Long id) {
