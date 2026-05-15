@@ -43,7 +43,7 @@ public class LeaveNotificationEmailService {
 		} catch (MailException exception) {
 			logger.error("Could not send leave notification for leave {}.", leaveRequest.getId(), exception);
 			return false;
-		} catch (RuntimeException exception) {
+		} catch (Exception exception) {
 			logger.error("Unexpected leave notification error for leave {}.", leaveRequest.getId(), exception);
 			return false;
 		}

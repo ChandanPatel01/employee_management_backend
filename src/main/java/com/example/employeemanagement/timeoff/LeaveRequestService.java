@@ -2,6 +2,8 @@ package com.example.employeemanagement.timeoff;
 
 import com.example.employeemanagement.employee.Employee;
 import com.example.employeemanagement.employee.EmployeeService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +14,10 @@ import java.util.List;
 @Service
 @Transactional
 public class LeaveRequestService {
+
+	private static final Logger logger = LoggerFactory.getLogger(LeaveRequestService.class);
+	private static final String EMAIL_SENT_MESSAGE = "Leave status updated and notification email sent.";
+	private static final String EMAIL_FAILED_MESSAGE = "Leave status updated, but email notification could not be sent.";
 
 	private final LeaveRequestRepository leaveRequestRepository;
 	private final EmployeeService employeeService;
@@ -67,9 +73,10 @@ public class LeaveRequestService {
 		leaveRequest.setDecidedAt(Instant.now());
 
 		LeaveRequest savedLeaveRequest = leaveRequestRepository.saveAndFlush(leaveRequest);
-		boolean emailSent = leaveNotificationEmailService.sendDecisionEmail(savedLeaveRequest);
+		boolean emailSent = sendNotificationSafely(savedLeaveRequest);
+		String message = emailSent ? EMAIL_SENT_MESSAGE : EMAIL_FAILED_MESSAGE;
 
-		return new LeaveDecisionResponse(savedLeaveRequest, true, emailSent);
+		return new LeaveDecisionResponse(savedLeaveRequest, true, emailSent, message);
 	}
 
 	public void deleteLeave(Long id) {
@@ -82,5 +89,14 @@ public class LeaveRequestService {
 
 	private String clean(String value) {
 		return value == null || value.isBlank() ? null : value.trim();
+	}
+
+	private boolean sendNotificationSafely(LeaveRequest leaveRequest) {
+		try {
+			return leaveNotificationEmailService.sendDecisionEmail(leaveRequest);
+		} catch (Exception exception) {
+			logger.error("Leave status was updated, but notification email failed for leave {}.", leaveRequest.getId(), exception);
+			return false;
+		}
 	}
 }

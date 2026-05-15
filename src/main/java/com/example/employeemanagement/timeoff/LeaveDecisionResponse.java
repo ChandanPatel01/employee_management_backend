@@ -3,6 +3,7 @@ package com.example.employeemanagement.timeoff;
 public record LeaveDecisionResponse(
 		LeaveRequest leave,
 		boolean statusUpdated,
-		boolean emailSent
+		boolean emailSent,
+		String message
 ) {
 }
