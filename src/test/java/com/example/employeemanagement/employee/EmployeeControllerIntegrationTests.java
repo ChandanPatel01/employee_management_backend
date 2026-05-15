@@ -195,8 +195,8 @@ class EmployeeControllerIntegrationTests {
 	}
 
 	@Test
-	void corsPreflightAllowsDeployedFrontend() throws Exception {
-		String frontendOrigin = "https://employee-management-frontend-s028.onrender.com";
+	void corsPreflightAllowsLocalFrontend() throws Exception {
+		String frontendOrigin = "http://localhost:5173";
 
 		mockMvc.perform(options("/api/auth/signup")
 						.header(HttpHeaders.ORIGIN, frontendOrigin)

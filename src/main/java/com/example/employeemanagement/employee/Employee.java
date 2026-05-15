@@ -7,7 +7,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -64,8 +63,7 @@ public class Employee {
 
 	private String maritalStatus;
 
-	@Lob
-	@Column(columnDefinition = "LONGTEXT")
+	@Column(length = 1024)
 	private String photoUrl;
 
 	@NotNull
