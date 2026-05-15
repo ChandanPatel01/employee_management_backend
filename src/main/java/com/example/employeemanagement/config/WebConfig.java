@@ -16,35 +16,39 @@ import java.util.List;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-	private final EmployeePhotoStorageService employeePhotoStorageService;
+    private final EmployeePhotoStorageService employeePhotoStorageService;
 
-	public WebConfig(EmployeePhotoStorageService employeePhotoStorageService) {
-		this.employeePhotoStorageService = employeePhotoStorageService;
-	}
+    public WebConfig(EmployeePhotoStorageService employeePhotoStorageService) {
+        this.employeePhotoStorageService = employeePhotoStorageService;
+    }
 
-	@Override
-	public void addResourceHandlers(ResourceHandlerRegistry registry) {
-		registry.addResourceHandler("/uploads/**")
-				.addResourceLocations(employeePhotoStorageService.uploadRootLocation());
-	}
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations(employeePhotoStorageService.uploadRootLocation());
+    }
 
-	@Bean
-	public FilterRegistrationBean<CorsFilter> corsFilter() {
-		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOrigins(
-				List.of(
-					"http://localhost:5173",
-					"http://127.0.0.1:5173"
-				));
-		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-		configuration.setAllowedHeaders(List.of("*"));
-		configuration.setMaxAge(3600L);
+    @Bean
+    public FilterRegistrationBean<CorsFilter> corsFilter() {
+        CorsConfiguration configuration = new CorsConfiguration();
 
-		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-		source.registerCorsConfiguration("/api/**", configuration);
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "https://employee-management-frontends.onrender.com"
+        ));
 
-		FilterRegistrationBean<CorsFilter> registration = new FilterRegistrationBean<>(new CorsFilter(source));
-		registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
-		return registration;
-	}
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", configuration);
+        source.registerCorsConfiguration("/uploads/**", configuration);
+
+        FilterRegistrationBean<CorsFilter> registration = new FilterRegistrationBean<>(new CorsFilter(source));
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return registration;
+    }
 }
