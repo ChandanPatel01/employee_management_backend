@@ -30,7 +30,17 @@ public class AppUser {
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
-	private UserRole role = UserRole.USER;
+	private UserRole role = UserRole.EMPLOYEE;
+
+	@Column(nullable = false)
+	private boolean forcePasswordChange = false;
+
+	@Column(nullable = false)
+	private boolean passwordChanged = true;
+
+	private Instant passwordChangedAt;
+
+	private String createdBy;
 
 	@Column(nullable = false, updatable = false)
 	private Instant createdAt = Instant.now();
@@ -75,7 +85,39 @@ public class AppUser {
 	}
 
 	public void setRole(UserRole role) {
-		this.role = role == null ? UserRole.USER : role;
+		this.role = role == null ? UserRole.EMPLOYEE : role;
+	}
+
+	public boolean isForcePasswordChange() {
+		return forcePasswordChange;
+	}
+
+	public void setForcePasswordChange(boolean forcePasswordChange) {
+		this.forcePasswordChange = forcePasswordChange;
+	}
+
+	public boolean isPasswordChanged() {
+		return passwordChanged;
+	}
+
+	public void setPasswordChanged(boolean passwordChanged) {
+		this.passwordChanged = passwordChanged;
+	}
+
+	public Instant getPasswordChangedAt() {
+		return passwordChangedAt;
+	}
+
+	public void setPasswordChangedAt(Instant passwordChangedAt) {
+		this.passwordChangedAt = passwordChangedAt;
+	}
+
+	public String getCreatedBy() {
+		return createdBy;
+	}
+
+	public void setCreatedBy(String createdBy) {
+		this.createdBy = createdBy;
 	}
 
 	public Instant getCreatedAt() {

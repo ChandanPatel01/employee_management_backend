@@ -14,6 +14,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class AdminUserInitializer implements ApplicationRunner {
@@ -58,6 +60,12 @@ public class AdminUserInitializer implements ApplicationRunner {
 		}
 
 		user.setRole(UserRole.ADMIN);
+		user.setForcePasswordChange(false);
+		user.setPasswordChanged(true);
+		if (user.getPasswordChangedAt() == null) {
+			user.setPasswordChangedAt(Instant.now());
+		}
+		user.setCreatedBy("system");
 		appUserRepository.save(user);
 
 		logger.info("{} admin user for {}", isNewUser ? "Created" : "Confirmed", email);

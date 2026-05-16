@@ -4,6 +4,9 @@ public record AuthResponse(
 		String token,
 		String tokenType,
 		long expiresIn,
-		UserResponse user
+		UserResponse user,
+		UserRole role,
+		String name,
+		boolean forcePasswordChange
 ) {
 }

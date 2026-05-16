@@ -1,6 +1,7 @@
 package com.example.employeemanagement.auth;
 
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,5 +28,19 @@ public class AuthController {
 	@PostMapping("/login")
 	public AuthResponse login(@Valid @RequestBody AuthRequest request) {
 		return authService.login(request);
+	}
+
+	@PostMapping("/change-password")
+	public AuthResponse changePassword(@Valid @RequestBody ChangePasswordRequest request, HttpServletRequest servletRequest) {
+		return authService.changePassword(authenticatedUserId(servletRequest), request);
+	}
+
+	private long authenticatedUserId(HttpServletRequest request) {
+		Object userId = request.getAttribute("authenticatedUserId");
+		if (userId instanceof Number number) {
+			return number.longValue();
+		}
+
+		throw new InvalidCredentialsException();
 	}
 }

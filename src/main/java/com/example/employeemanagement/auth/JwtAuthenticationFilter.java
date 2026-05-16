@@ -21,10 +21,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private final JwtService jwtService;
 	private final ObjectMapper objectMapper;
+	private final AppUserRepository appUserRepository;
 
-	public JwtAuthenticationFilter(JwtService jwtService, ObjectMapper objectMapper) {
+	public JwtAuthenticationFilter(JwtService jwtService, ObjectMapper objectMapper, AppUserRepository appUserRepository) {
 		this.jwtService = jwtService;
 		this.objectMapper = objectMapper;
+		this.appUserRepository = appUserRepository;
 	}
 
 	@Override
@@ -43,14 +45,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 		try {
 			JwtService.JwtClaims claims = jwtService.validate(authorization.substring(7));
-			if (claims.role() != UserRole.ADMIN) {
-				forbidden(response, "Access denied. Only admin users can access this management portal.");
+			AppUser user = appUserRepository.findById(claims.userId()).orElse(null);
+			if (user == null) {
+				unauthorized(response, "Authenticated user was not found");
 				return;
 			}
 
-			request.setAttribute("authenticatedUserEmail", claims.email());
-			request.setAttribute("authenticatedUserId", claims.userId());
-			request.setAttribute("authenticatedUserRole", claims.role().name());
+			if (user.isForcePasswordChange() && !isChangePasswordRequest(request)) {
+				forbidden(response, "Please change your temporary password before continuing.");
+				return;
+			}
+
+			if (!isRoleAllowed(request, user.getRole())) {
+				forbidden(response, "Access denied. You do not have permission to access this module.");
+				return;
+			}
+
+			request.setAttribute("authenticatedUserEmail", user.getEmail());
+			request.setAttribute("authenticatedUserId", user.getId());
+			request.setAttribute("authenticatedUserRole", user.getRole().name());
 			filterChain.doFilter(request, response);
 		} catch (JwtService.JwtValidationException exception) {
 			unauthorized(response, exception.getMessage());
@@ -61,7 +74,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		String path = request.getRequestURI();
 		return "OPTIONS".equalsIgnoreCase(request.getMethod())
 				|| !path.startsWith("/api/")
-				|| path.startsWith("/api/auth/");
+				|| path.equals("/api/auth/login")
+				|| path.equals("/api/auth/signup");
+	}
+
+	private boolean isChangePasswordRequest(HttpServletRequest request) {
+		return "/api/auth/change-password".equals(request.getRequestURI());
+	}
+
+	private boolean isRoleAllowed(HttpServletRequest request, UserRole role) {
+		String path = request.getRequestURI();
+
+		if (isChangePasswordRequest(request)) {
+			return true;
+		}
+
+		if (path.startsWith("/api/users")) {
+			return hasAny(role, UserRole.ADMIN, UserRole.HR);
+		}
+
+		if (path.startsWith("/api/employees")
+				|| path.startsWith("/api/leaves")
+				|| path.startsWith("/api/uploads")) {
+			return hasAny(role, UserRole.ADMIN, UserRole.HR);
+		}
+
+		if (path.startsWith("/api/crm/")) {
+			return hasAny(role, UserRole.ADMIN, UserRole.MANAGER);
+		}
+
+		return role == UserRole.ADMIN;
+	}
+
+	private boolean hasAny(UserRole actualRole, UserRole... allowedRoles) {
+		for (UserRole allowedRole : allowedRoles) {
+			if (actualRole == allowedRole) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private void unauthorized(HttpServletResponse response, String message) throws IOException {

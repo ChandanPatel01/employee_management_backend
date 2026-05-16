@@ -30,6 +30,18 @@ public class AuthExceptionHandler {
 		return error(HttpStatus.FORBIDDEN, exception.getMessage());
 	}
 
+	@ExceptionHandler(PasswordChangeException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ApiError handlePasswordChange(PasswordChangeException exception) {
+		return error(HttpStatus.BAD_REQUEST, exception.getMessage());
+	}
+
+	@ExceptionHandler(UserManagementException.class)
+	@ResponseStatus(HttpStatus.FORBIDDEN)
+	public ApiError handleUserManagement(UserManagementException exception) {
+		return error(HttpStatus.FORBIDDEN, exception.getMessage());
+	}
+
 	private ApiError error(HttpStatus status, String message) {
 		return new ApiError(Instant.now(), status.value(), status.getReasonPhrase(), message, Map.of());
 	}

@@ -53,12 +53,25 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 
 	private void ensureUserRoleColumn(Connection connection) throws Exception {
 		if (!columnExists(connection, "app_users", "role")) {
-			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'USER'");
+			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'EMPLOYEE'");
 		}
 
 		jdbcTemplate.execute("UPDATE app_users SET role = 'ADMIN' WHERE role = 'FOUNDER'");
-		jdbcTemplate.execute("UPDATE app_users SET role = 'USER' WHERE role IS NULL OR role = '' OR role NOT IN ('USER', 'ADMIN')");
-		jdbcTemplate.execute("ALTER TABLE app_users MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'USER'");
+		jdbcTemplate.execute("UPDATE app_users SET role = 'EMPLOYEE' WHERE role IS NULL OR role = '' OR role = 'USER' OR role NOT IN ('EMPLOYEE', 'INTERN', 'MANAGER', 'HR', 'ADMIN')");
+		jdbcTemplate.execute("ALTER TABLE app_users MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'EMPLOYEE'");
+
+		if (!columnExists(connection, "app_users", "force_password_change")) {
+			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN force_password_change TINYINT(1) NOT NULL DEFAULT 0");
+		}
+		if (!columnExists(connection, "app_users", "password_changed")) {
+			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN password_changed TINYINT(1) NOT NULL DEFAULT 1");
+		}
+		if (!columnExists(connection, "app_users", "password_changed_at")) {
+			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN password_changed_at TIMESTAMP NULL");
+		}
+		if (!columnExists(connection, "app_users", "created_by")) {
+			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN created_by VARCHAR(255)");
+		}
 	}
 
 	private void migrateBase64Photos(Connection connection) throws Exception {
