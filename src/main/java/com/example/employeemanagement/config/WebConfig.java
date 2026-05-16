@@ -15,6 +15,12 @@ import java.util.List;
 @Configuration
 public class WebConfig {
 
+    private static final List<String> DEFAULT_ALLOWED_ORIGINS = List.of(
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "https://employee-management-frontends.onrender.com",
+            "https://employee-management-frontend.onrender.com");
+
     private final String allowedOrigins;
 
     public WebConfig(@Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,https://employee-management-frontends.onrender.com,https://employee-management-frontend.onrender.com}") String allowedOrigins) {
@@ -41,9 +47,18 @@ public class WebConfig {
     }
 
     private List<String> parseAllowedOrigins() {
-        return Arrays.stream(allowedOrigins.split(","))
+        List<String> configuredOrigins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
+                .map(this::normalizeOrigin)
                 .filter(origin -> !origin.isBlank())
                 .toList();
+
+        return java.util.stream.Stream.concat(DEFAULT_ALLOWED_ORIGINS.stream(), configuredOrigins.stream())
+                .distinct()
+                .toList();
+    }
+
+    private String normalizeOrigin(String origin) {
+        return origin.replaceAll("/+$", "");
     }
 }
