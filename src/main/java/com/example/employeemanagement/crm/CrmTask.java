@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -35,7 +36,8 @@ public class CrmTask {
 	@Column(nullable = false)
 	private String title;
 
-	@Column(length = 2000)
+	@Lob
+	@Column(columnDefinition = "TEXT")
 	private String description;
 
 	@NotNull

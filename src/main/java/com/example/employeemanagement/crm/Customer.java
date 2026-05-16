@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -41,7 +42,8 @@ public class Customer {
 
 	private String phone;
 
-	@Column(length = 1000)
+	@Lob
+	@Column(columnDefinition = "TEXT")
 	private String address;
 
 	private String projectName;
@@ -50,18 +52,22 @@ public class Customer {
 
 	private String paymentStatus;
 
-	@Column(length = 4000)
+	@Lob
+	@Column(columnDefinition = "TEXT")
 	private String paymentHistory;
 
 	private String assignedTeam;
 
-	@Column(length = 4000)
+	@Lob
+	@Column(columnDefinition = "TEXT")
 	private String supportTickets;
 
-	@Column(length = 4000)
+	@Lob
+	@Column(columnDefinition = "TEXT")
 	private String previousCommunication;
 
-	@Column(length = 4000)
+	@Lob
+	@Column(columnDefinition = "TEXT")
 	private String notes;
 
 	@Column(nullable = false, updatable = false)

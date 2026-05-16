@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -41,14 +42,16 @@ public class CustomerCommunication {
 	private String subject;
 
 	@NotBlank
-	@Column(nullable = false, length = 3000)
+	@Lob
+	@Column(nullable = false, columnDefinition = "TEXT")
 	private String summary;
 
 	@NotNull
 	@Column(nullable = false)
 	private LocalDateTime communicationDate;
 
-	@Column(length = 1000)
+	@Lob
+	@Column(columnDefinition = "TEXT")
 	private String nextAction;
 
 	private String createdBy;
