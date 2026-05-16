@@ -27,6 +27,7 @@ public class AuthService {
 		user.setName(request.name().trim());
 		user.setEmail(email);
 		user.setPasswordHash(passwordService.hash(request.password()));
+		user.setRole(UserRole.EMPLOYEE);
 
 		AppUser savedUser = appUserRepository.save(user);
 		return responseFor(savedUser);

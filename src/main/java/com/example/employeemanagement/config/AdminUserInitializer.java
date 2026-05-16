@@ -25,18 +25,21 @@ public class AdminUserInitializer implements ApplicationRunner {
 	private final String adminEmail;
 	private final String adminPassword;
 	private final String adminName;
+	private final String adminRole;
 
 	public AdminUserInitializer(
 			AppUserRepository appUserRepository,
 			PasswordService passwordService,
 			@Value("${admin.email:}") String adminEmail,
 			@Value("${admin.password:}") String adminPassword,
-			@Value("${admin.name:}") String adminName) {
+			@Value("${admin.name:}") String adminName,
+			@Value("${admin.role:ADMIN}") String adminRole) {
 		this.appUserRepository = appUserRepository;
 		this.passwordService = passwordService;
 		this.adminEmail = adminEmail;
 		this.adminPassword = adminPassword;
 		this.adminName = adminName;
+		this.adminRole = adminRole;
 	}
 
 	@Override
@@ -57,13 +60,28 @@ public class AdminUserInitializer implements ApplicationRunner {
 			user.setPasswordHash(passwordService.hash(adminPassword));
 		}
 
-		user.setRole(UserRole.ADMIN);
+		UserRole role = parseAdminRole(adminRole);
+		user.setRole(role);
 		appUserRepository.save(user);
 
-		logger.info("{} admin user for {}", isNewUser ? "Created" : "Confirmed", email);
+		logger.info("{} {} user for {}", isNewUser ? "Created" : "Confirmed", role, email);
 	}
 
 	private boolean isBlank(String value) {
 		return value == null || value.isBlank();
+	}
+
+	private UserRole parseAdminRole(String value) {
+		if (value == null || value.isBlank()) {
+			return UserRole.ADMIN;
+		}
+
+		try {
+			UserRole role = UserRole.valueOf(value.trim().toUpperCase());
+			return role == UserRole.FOUNDER ? UserRole.FOUNDER : UserRole.ADMIN;
+		} catch (IllegalArgumentException exception) {
+			logger.warn("ADMIN_ROLE={} is not valid. Falling back to ADMIN.", value);
+			return UserRole.ADMIN;
+		}
 	}
 }

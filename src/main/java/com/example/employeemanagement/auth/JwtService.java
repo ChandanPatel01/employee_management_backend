@@ -81,7 +81,7 @@ public class JwtService {
 		}
 
 		try {
-			return new JwtClaims(id.longValue(), email, UserRole.valueOf(role));
+			return new JwtClaims(id.longValue(), email, parseRole(role));
 		} catch (IllegalArgumentException exception) {
 			throw new JwtValidationException("Invalid token role");
 		}
@@ -117,6 +117,14 @@ public class JwtService {
 		} catch (Exception exception) {
 			throw new IllegalStateException("Could not sign JWT", exception);
 		}
+	}
+
+	private UserRole parseRole(String role) {
+		if ("USER".equalsIgnoreCase(role)) {
+			return UserRole.EMPLOYEE;
+		}
+
+		return UserRole.valueOf(role);
 	}
 
 	public record JwtClaims(long userId, String email, UserRole role) {

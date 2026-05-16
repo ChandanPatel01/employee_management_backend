@@ -43,8 +43,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 		try {
 			JwtService.JwtClaims claims = jwtService.validate(authorization.substring(7));
-			if (claims.role() != UserRole.ADMIN) {
-				forbidden(response, "Access denied. Only admin users can access this management portal.");
+			if (!isRoleAllowed(request, claims.role())) {
+				forbidden(response, "Access denied. You do not have permission to access this module.");
 				return;
 			}
 
@@ -62,6 +62,59 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		return "OPTIONS".equalsIgnoreCase(request.getMethod())
 				|| !path.startsWith("/api/")
 				|| path.startsWith("/api/auth/");
+	}
+
+	private boolean isRoleAllowed(HttpServletRequest request, UserRole role) {
+		String path = request.getRequestURI();
+		String method = request.getMethod();
+
+		if (path.startsWith("/api/portal/learning-resources") && "GET".equalsIgnoreCase(method)) {
+			return hasAny(role, UserRole.EMPLOYEE, UserRole.TEAM_LEAD, UserRole.HR, UserRole.ADMIN, UserRole.FOUNDER);
+		}
+
+		if (path.startsWith("/api/portal/")) {
+			return hasAny(role, UserRole.EMPLOYEE, UserRole.TEAM_LEAD, UserRole.HR, UserRole.ADMIN, UserRole.FOUNDER);
+		}
+
+		if (path.startsWith("/api/team/")
+				|| path.startsWith("/api/projects")
+				|| path.startsWith("/api/reports")) {
+			return hasAny(role, UserRole.TEAM_LEAD, UserRole.ADMIN, UserRole.FOUNDER);
+		}
+
+		if (path.startsWith("/api/hr/")) {
+			return hasAny(role, UserRole.HR, UserRole.ADMIN, UserRole.FOUNDER);
+		}
+
+		if (path.startsWith("/api/admin/")) {
+			return hasAny(role, UserRole.ADMIN, UserRole.FOUNDER);
+		}
+
+		if (path.startsWith("/api/founder/")) {
+			return role == UserRole.FOUNDER;
+		}
+
+		if (path.startsWith("/api/employees")
+				|| path.startsWith("/api/leaves")
+				|| path.startsWith("/api/uploads")) {
+			return hasAny(role, UserRole.HR, UserRole.ADMIN, UserRole.FOUNDER);
+		}
+
+		if (path.startsWith("/api/crm/")) {
+			return hasAny(role, UserRole.ADMIN, UserRole.FOUNDER);
+		}
+
+		return hasAny(role, UserRole.ADMIN, UserRole.FOUNDER);
+	}
+
+	private boolean hasAny(UserRole actualRole, UserRole... allowedRoles) {
+		for (UserRole allowedRole : allowedRoles) {
+			if (actualRole == allowedRole) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private void unauthorized(HttpServletResponse response, String message) throws IOException {

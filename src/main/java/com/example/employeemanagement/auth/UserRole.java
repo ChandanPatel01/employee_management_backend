@@ -1,6 +1,9 @@
 package com.example.employeemanagement.auth;
 
 public enum UserRole {
-	USER,
-	ADMIN
+	EMPLOYEE,
+	TEAM_LEAD,
+	HR,
+	ADMIN,
+	FOUNDER
 }
