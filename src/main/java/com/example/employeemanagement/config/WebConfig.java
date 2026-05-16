@@ -19,11 +19,12 @@ public class WebConfig {
             "http://localhost:5173",
             "http://127.0.0.1:5173",
             "https://employee-management-frontends.onrender.com",
-            "https://employee-management-frontend.onrender.com");
+            "https://employee-management-frontend.onrender.com",
+            "https://*.onrender.com");
 
     private final String allowedOrigins;
 
-    public WebConfig(@Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,https://employee-management-frontends.onrender.com,https://employee-management-frontend.onrender.com}") String allowedOrigins) {
+    public WebConfig(@Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,https://employee-management-frontends.onrender.com,https://employee-management-frontend.onrender.com,https://*.onrender.com}") String allowedOrigins) {
         this.allowedOrigins = allowedOrigins;
     }
 
