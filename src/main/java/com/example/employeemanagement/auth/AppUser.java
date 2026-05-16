@@ -30,7 +30,7 @@ public class AppUser {
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
-	private UserRole role = UserRole.EMPLOYEE;
+	private UserRole role = UserRole.USER;
 
 	@Column(nullable = false, updatable = false)
 	private Instant createdAt = Instant.now();
@@ -75,7 +75,7 @@ public class AppUser {
 	}
 
 	public void setRole(UserRole role) {
-		this.role = role == null ? UserRole.EMPLOYEE : role;
+		this.role = role == null ? UserRole.USER : role;
 	}
 
 	public Instant getCreatedAt() {

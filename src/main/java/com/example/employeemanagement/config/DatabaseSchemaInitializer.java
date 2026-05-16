@@ -53,11 +53,12 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 
 	private void ensureUserRoleColumn(Connection connection) throws Exception {
 		if (!columnExists(connection, "app_users", "role")) {
-			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'EMPLOYEE'");
+			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'USER'");
 		}
 
-		jdbcTemplate.execute("UPDATE app_users SET role = 'EMPLOYEE' WHERE role IS NULL OR role = '' OR role = 'USER'");
-		jdbcTemplate.execute("ALTER TABLE app_users MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'EMPLOYEE'");
+		jdbcTemplate.execute("UPDATE app_users SET role = 'ADMIN' WHERE role = 'FOUNDER'");
+		jdbcTemplate.execute("UPDATE app_users SET role = 'USER' WHERE role IS NULL OR role = '' OR role NOT IN ('USER', 'ADMIN')");
+		jdbcTemplate.execute("ALTER TABLE app_users MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'USER'");
 	}
 
 	private void migrateBase64Photos(Connection connection) throws Exception {
