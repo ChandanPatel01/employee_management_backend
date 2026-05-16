@@ -24,6 +24,12 @@ public class AuthExceptionHandler {
 		return error(HttpStatus.UNAUTHORIZED, exception.getMessage());
 	}
 
+	@ExceptionHandler(SignupDisabledException.class)
+	@ResponseStatus(HttpStatus.FORBIDDEN)
+	public ApiError handleSignupDisabled(SignupDisabledException exception) {
+		return error(HttpStatus.FORBIDDEN, exception.getMessage());
+	}
+
 	private ApiError error(HttpStatus status, String message) {
 		return new ApiError(Instant.now(), status.value(), status.getReasonPhrase(), message, Map.of());
 	}

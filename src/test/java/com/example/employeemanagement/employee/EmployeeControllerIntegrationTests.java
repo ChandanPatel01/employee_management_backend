@@ -1,7 +1,9 @@
 package com.example.employeemanagement.employee;
 
+import com.example.employeemanagement.auth.AppUser;
 import com.example.employeemanagement.auth.AppUserRepository;
 import com.example.employeemanagement.auth.AuthRequest;
+import com.example.employeemanagement.auth.PasswordService;
 import com.example.employeemanagement.auth.SignupRequest;
 import com.example.employeemanagement.auth.UserRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,6 +45,9 @@ class EmployeeControllerIntegrationTests {
 
 	@Autowired
 	private AppUserRepository appUserRepository;
+
+	@Autowired
+	private PasswordService passwordService;
 
 	@BeforeEach
 	void setUp() {
@@ -174,16 +179,19 @@ class EmployeeControllerIntegrationTests {
 	}
 
 	@Test
-	void signupAndLoginReturnJwt() throws Exception {
-		SignupRequest signupRequest = new SignupRequest("Test Admin", "admin@example.com", "password123");
+	void publicSignupIsDisabled() throws Exception {
+		SignupRequest signupRequest = new SignupRequest("Test User", "user@example.com", "password123");
 
 		mockMvc.perform(post("/api/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(signupRequest)))
-				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.token").isNotEmpty())
-				.andExpect(jsonPath("$.tokenType").value("Bearer"))
-				.andExpect(jsonPath("$.user.email").value("admin@example.com"));
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.message").value("Signup is disabled. Please contact the admin to create an account."));
+	}
+
+	@Test
+	void loginReturnsJwtForExistingAdmin() throws Exception {
+		createAdminUser("admin@example.com", "password123", "Test Admin");
 
 		AuthRequest loginRequest = new AuthRequest("admin@example.com", "password123");
 
@@ -224,17 +232,7 @@ class EmployeeControllerIntegrationTests {
 
 	private String authorizationHeader() throws Exception {
 		String email = "tester" + System.nanoTime() + "@example.com";
-		SignupRequest signupRequest = new SignupRequest("Test Admin", email, "password123");
-
-		mockMvc.perform(post("/api/auth/signup")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(objectMapper.writeValueAsString(signupRequest)))
-				.andExpect(status().isCreated());
-
-		appUserRepository.findByEmail(email).ifPresent((user) -> {
-			user.setRole(UserRole.ADMIN);
-			appUserRepository.save(user);
-		});
+		createAdminUser(email, "password123", "Test Admin");
 
 		AuthRequest loginRequest = new AuthRequest(email, "password123");
 		String response = mockMvc.perform(post("/api/auth/login")
@@ -247,5 +245,14 @@ class EmployeeControllerIntegrationTests {
 
 		String token = objectMapper.readTree(response).get("token").asText();
 		return "Bearer " + token;
+	}
+
+	private void createAdminUser(String email, String password, String name) {
+		AppUser user = new AppUser();
+		user.setEmail(email);
+		user.setName(name);
+		user.setPasswordHash(passwordService.hash(password));
+		user.setRole(UserRole.ADMIN);
+		appUserRepository.save(user);
 	}
 }
