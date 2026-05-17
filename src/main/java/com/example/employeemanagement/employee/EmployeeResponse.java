@@ -41,6 +41,6 @@ public record EmployeeResponse(
 				employee.getGender(),
 				employee.getMaritalStatus(),
 				employee.getPhotoUrl(),
-				employee.getStatus());
+				employee.getStatus() == null ? EmploymentStatus.ACTIVE : employee.getStatus());
 	}
 }

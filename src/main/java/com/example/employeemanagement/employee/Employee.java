@@ -195,6 +195,6 @@ public class Employee {
 	}
 
 	public void setStatus(EmploymentStatus status) {
-		this.status = status;
+		this.status = status == null ? EmploymentStatus.ACTIVE : status;
 	}
 }

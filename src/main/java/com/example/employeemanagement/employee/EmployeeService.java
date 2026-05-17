@@ -1,15 +1,20 @@
 package com.example.employeemanagement.employee;
 
+import com.example.employeemanagement.audit.AuditLogService;
 import com.example.employeemanagement.auth.AppUser;
 import com.example.employeemanagement.auth.AppUserRepository;
 import com.example.employeemanagement.auth.UserRole;
+import com.example.employeemanagement.workflow.NotificationService;
+import com.example.employeemanagement.workflow.NotificationType;
 import com.example.employeemanagement.workflow.WorkflowException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -18,26 +23,49 @@ public class EmployeeService {
 	private final SecureRandom secureRandom = new SecureRandom();
 	private final EmployeeRepository employeeRepository;
 	private final AppUserRepository appUserRepository;
+	private final AuditLogService auditLogService;
+	private final NotificationService notificationService;
+	private final String primaryAdminEmail;
 
-	public EmployeeService(EmployeeRepository employeeRepository, AppUserRepository appUserRepository) {
+	public EmployeeService(
+			EmployeeRepository employeeRepository,
+			AppUserRepository appUserRepository,
+			AuditLogService auditLogService,
+			NotificationService notificationService,
+			@Value("${admin.email:}") String primaryAdminEmail) {
 		this.employeeRepository = employeeRepository;
 		this.appUserRepository = appUserRepository;
+		this.auditLogService = auditLogService;
+		this.notificationService = notificationService;
+		this.primaryAdminEmail = normalize(primaryAdminEmail);
 	}
 
 	@Transactional(readOnly = true)
 	public List<Employee> getEmployees(String department) {
+		return getEmployees(department, false);
+	}
+
+	@Transactional(readOnly = true)
+	public List<Employee> getEmployees(String department, boolean includeInactive) {
 		if (department == null || department.isBlank()) {
-			return employeeRepository.findAll();
+			return includeInactive ? employeeRepository.findAll() : employeeRepository.findByStatus(EmploymentStatus.ACTIVE);
 		}
 
-		return employeeRepository.findByDepartmentIgnoreCase(department);
+		return includeInactive
+				? employeeRepository.findByDepartmentIgnoreCase(department)
+				: employeeRepository.findByStatusAndDepartmentIgnoreCase(EmploymentStatus.ACTIVE, department);
 	}
 
 	@Transactional(readOnly = true)
 	public List<Employee> getEmployees(String department, long actorId) {
+		return getEmployees(department, false, actorId);
+	}
+
+	@Transactional(readOnly = true)
+	public List<Employee> getEmployees(String department, boolean includeInactive, long actorId) {
 		AppUser actor = actor(actorId);
 		if (hasPeopleAccess(actor)) {
-			return getEmployees(department);
+			return getEmployees(department, includeInactive);
 		}
 
 		Employee employee = requireEmployee(actor);
@@ -46,10 +74,14 @@ public class EmployeeService {
 			if (employee.getDepartment() == null || managerDepartment == null || !employee.getDepartment().equalsIgnoreCase(managerDepartment)) {
 				throw new WorkflowException("Managers can view only their team.");
 			}
-			return employeeRepository.findByDepartmentIgnoreCase(managerDepartment);
+			return employeeRepository.findByStatusAndDepartmentIgnoreCase(EmploymentStatus.ACTIVE, managerDepartment);
 		}
 
-		return List.of(employee);
+		if (employee.getStatus() == EmploymentStatus.ACTIVE) {
+			return List.of(employee);
+		}
+
+		return List.of();
 	}
 
 	@Transactional(readOnly = true)
@@ -137,16 +169,54 @@ public class EmployeeService {
 	}
 
 	public void deleteEmployee(Long id) {
-		if (!employeeRepository.existsById(id)) {
-			throw new EmployeeNotFoundException(id);
-		}
-
-		employeeRepository.deleteById(id);
+		deactivateEmployee(id, null);
 	}
 
-	public void deleteEmployee(Long id, long actorId) {
-		ensurePeopleAdmin(actor(actorId));
-		deleteEmployee(id);
+	public EmployeeDeactivationResponse deleteEmployee(Long id, long actorId) {
+		return deactivateEmployee(id, actor(actorId));
+	}
+
+	public EmployeeDeactivationResponse deactivateEmployee(Long id, AppUser actor) {
+		if (id == null) {
+			throw new EmployeeValidationException("Employee id is required.");
+		}
+
+		Employee employee = getEmployee(id);
+		Optional<AppUser> linkedUser = appUserRepository.findByEmployeeId(id);
+		if (actor != null) {
+			ensureCanDeactivate(actor, employee, linkedUser);
+		}
+
+		if (employee.getStatus() == EmploymentStatus.INACTIVE) {
+			return new EmployeeDeactivationResponse(
+					true,
+					"Employee is already inactive.",
+					EmployeeResponse.from(employee));
+		}
+
+		employee.setStatus(EmploymentStatus.INACTIVE);
+		Employee savedEmployee = employeeRepository.save(employee);
+		boolean linkedUserBlocked = linkedUser
+				.map((user) -> {
+					user.setBlocked(true);
+					appUserRepository.save(user);
+					return true;
+				})
+				.orElse(false);
+
+		if (actor != null) {
+			auditLogService.recordEmployeeDeactivated(actor, savedEmployee, linkedUserBlocked);
+			notificationService.notifyUser(
+					actor,
+					"Employee deactivated",
+					"%s was deactivated successfully.".formatted(fullName(savedEmployee)),
+					NotificationType.EMPLOYEE_DEACTIVATED);
+		}
+
+		return new EmployeeDeactivationResponse(
+				true,
+				"Employee deactivated successfully.",
+				EmployeeResponse.from(savedEmployee));
 	}
 
 	private String generateEmployeeCode(Employee employee) {
@@ -192,5 +262,62 @@ public class EmployeeService {
 	private boolean sameDepartment(Employee left, Employee right) {
 		return left.getDepartment() != null && right.getDepartment() != null
 				&& left.getDepartment().equalsIgnoreCase(right.getDepartment());
+	}
+
+	private void ensureCanDeactivate(AppUser actor, Employee employee, Optional<AppUser> linkedUser) {
+		if (!hasPeopleAccess(actor)) {
+			throw new EmployeeAccessDeniedException("You do not have permission to deactivate employees.");
+		}
+
+		if (isFounderEmployee(employee)) {
+			throw new ProtectedEmployeeException("This employee is protected and cannot be deactivated.");
+		}
+
+		if (linkedUser.isEmpty()) {
+			return;
+		}
+
+		AppUser targetUser = linkedUser.get();
+		if (actor.getId() != null && actor.getId().equals(targetUser.getId())) {
+			throw new ProtectedEmployeeException("You cannot deactivate your own employee profile.");
+		}
+
+		if (targetUser.getRole() == UserRole.FOUNDER || isPrimaryAdmin(targetUser)) {
+			throw new ProtectedEmployeeException("This employee is protected and cannot be deactivated.");
+		}
+
+		if (actor.getRole() == UserRole.HR && (targetUser.getRole() == UserRole.ADMIN || targetUser.getRole() == UserRole.FOUNDER)) {
+			throw new EmployeeAccessDeniedException("HR cannot deactivate ADMIN or FOUNDER employees.");
+		}
+	}
+
+	private boolean isPrimaryAdmin(AppUser user) {
+		if (user == null || user.getRole() != UserRole.ADMIN) {
+			return false;
+		}
+
+		String userEmail = normalize(user.getEmail());
+		return (!primaryAdminEmail.isBlank() && primaryAdminEmail.equals(userEmail))
+				|| "system".equalsIgnoreCase(user.getCreatedBy());
+	}
+
+	private boolean isFounderEmployee(Employee employee) {
+		String jobTitle = normalize(employee == null ? null : employee.getJobTitle());
+		return jobTitle.contains("founder");
+	}
+
+	private String fullName(Employee employee) {
+		if (employee == null) {
+			return "Employee";
+		}
+
+		String name = ("%s %s".formatted(
+				employee.getFirstName() == null ? "" : employee.getFirstName(),
+				employee.getLastName() == null ? "" : employee.getLastName())).trim();
+		return name.isBlank() ? "Employee" : name;
+	}
+
+	private String normalize(String value) {
+		return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
 	}
 }

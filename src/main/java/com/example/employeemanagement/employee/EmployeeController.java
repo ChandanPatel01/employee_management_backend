@@ -30,8 +30,9 @@ public class EmployeeController {
 	@GetMapping
 	public List<EmployeeResponse> getEmployees(
 			@RequestParam(name = "department", required = false) String department,
+			@RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive,
 			HttpServletRequest servletRequest) {
-		return employeeService.getEmployees(department, authenticatedUserId(servletRequest)).stream()
+		return employeeService.getEmployees(department, includeInactive, authenticatedUserId(servletRequest)).stream()
 				.map(EmployeeResponse::from)
 				.toList();
 	}
@@ -53,9 +54,8 @@ public class EmployeeController {
 	}
 
 	@DeleteMapping("/{id}")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void deleteEmployee(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
-		employeeService.deleteEmployee(id, authenticatedUserId(servletRequest));
+	public EmployeeDeactivationResponse deleteEmployee(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
+		return employeeService.deleteEmployee(id, authenticatedUserId(servletRequest));
 	}
 
 	private long authenticatedUserId(HttpServletRequest request) {

@@ -51,6 +51,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				return;
 			}
 
+			if (user.isBlocked()) {
+				forbidden(response, "Account is blocked. Please contact administrator.");
+				return;
+			}
+
 			if (user.isForcePasswordChange() && !isChangePasswordRequest(request)) {
 				forbidden(response, "Please change your temporary password before continuing.");
 				return;

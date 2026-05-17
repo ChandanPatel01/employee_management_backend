@@ -25,6 +25,24 @@ public class EmployeeExceptionHandler {
 		return error(HttpStatus.CONFLICT, exception.getMessage(), Map.of());
 	}
 
+	@ExceptionHandler(EmployeeValidationException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ApiError handleEmployeeValidation(EmployeeValidationException exception) {
+		return error(HttpStatus.BAD_REQUEST, exception.getMessage(), Map.of());
+	}
+
+	@ExceptionHandler(EmployeeAccessDeniedException.class)
+	@ResponseStatus(HttpStatus.FORBIDDEN)
+	public ApiError handleEmployeeAccessDenied(EmployeeAccessDeniedException exception) {
+		return error(HttpStatus.FORBIDDEN, exception.getMessage(), Map.of());
+	}
+
+	@ExceptionHandler(ProtectedEmployeeException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ApiError handleProtectedEmployee(ProtectedEmployeeException exception) {
+		return error(HttpStatus.CONFLICT, exception.getMessage(), Map.of());
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	public ApiError handleValidation(MethodArgumentNotValidException exception) {

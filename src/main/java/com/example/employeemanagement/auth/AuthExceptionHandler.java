@@ -30,6 +30,12 @@ public class AuthExceptionHandler {
 		return error(HttpStatus.FORBIDDEN, exception.getMessage());
 	}
 
+	@ExceptionHandler(AccountBlockedException.class)
+	@ResponseStatus(HttpStatus.FORBIDDEN)
+	public ApiError handleAccountBlocked(AccountBlockedException exception) {
+		return error(HttpStatus.FORBIDDEN, exception.getMessage());
+	}
+
 	@ExceptionHandler(PasswordChangeException.class)
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	public ApiError handlePasswordChange(PasswordChangeException exception) {

@@ -1,11 +1,13 @@
 package com.example.employeemanagement.employee;
 
+import com.example.employeemanagement.audit.AuditLogRepository;
 import com.example.employeemanagement.auth.AppUser;
 import com.example.employeemanagement.auth.AppUserRepository;
 import com.example.employeemanagement.auth.AuthRequest;
 import com.example.employeemanagement.auth.PasswordService;
 import com.example.employeemanagement.auth.SignupRequest;
 import com.example.employeemanagement.auth.UserRole;
+import com.example.employeemanagement.workflow.UserNotificationRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,12 +49,20 @@ class EmployeeControllerIntegrationTests {
 	private AppUserRepository appUserRepository;
 
 	@Autowired
+	private UserNotificationRepository notificationRepository;
+
+	@Autowired
+	private AuditLogRepository auditLogRepository;
+
+	@Autowired
 	private PasswordService passwordService;
 
 	@BeforeEach
 	void setUp() {
-		employeeRepository.deleteAll();
+		notificationRepository.deleteAll();
+		auditLogRepository.deleteAll();
 		appUserRepository.deleteAll();
+		employeeRepository.deleteAll();
 	}
 
 	@Test
@@ -86,6 +96,27 @@ class EmployeeControllerIntegrationTests {
 				.andExpect(jsonPath("$", hasSize(2)))
 				.andExpect(jsonPath("$[0].department").value("Engineering"))
 				.andExpect(jsonPath("$[1].department").value("Engineering"));
+	}
+
+	@Test
+	void getEmployeesHidesInactiveEmployeesByDefault() throws Exception {
+		String authorization = authorizationHeader();
+		employeeRepository.save(employee("Ada", "Lovelace", "ada@example.com", "Engineering"));
+		Employee inactiveEmployee = employee("Grace", "Hopper", "grace@example.com", "Engineering");
+		inactiveEmployee.setStatus(EmploymentStatus.INACTIVE);
+		employeeRepository.save(inactiveEmployee);
+
+		mockMvc.perform(get("/api/employees")
+						.header(HttpHeaders.AUTHORIZATION, authorization))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(1)))
+				.andExpect(jsonPath("$[0].email").value("ada@example.com"));
+
+		mockMvc.perform(get("/api/employees")
+						.header(HttpHeaders.AUTHORIZATION, authorization)
+						.param("includeInactive", "true"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(2)));
 	}
 
 	@Test
@@ -123,18 +154,37 @@ class EmployeeControllerIntegrationTests {
 	}
 
 	@Test
-	void deleteEmployeeRemovesEmployee() throws Exception {
+	void deleteEmployeeDeactivatesEmployeeAndBlocksLinkedUser() throws Exception {
 		String authorization = authorizationHeader();
 		Employee savedEmployee = employeeRepository.save(employee("Ada", "Lovelace", "ada@example.com", "Engineering"));
+		createEmployeeUser(savedEmployee, "password123", UserRole.EMPLOYEE);
 
 		mockMvc.perform(delete("/api/employees/{id}", savedEmployee.getId())
 						.header(HttpHeaders.AUTHORIZATION, authorization))
-				.andExpect(status().isNoContent());
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.message").value("Employee deactivated successfully."))
+				.andExpect(jsonPath("$.employee.status").value("INACTIVE"));
 
 		mockMvc.perform(get("/api/employees/{id}", savedEmployee.getId())
 						.header(HttpHeaders.AUTHORIZATION, authorization))
-				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.message").value("Employee with id " + savedEmployee.getId() + " was not found"));
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("INACTIVE"));
+
+		mockMvc.perform(get("/api/employees")
+						.header(HttpHeaders.AUTHORIZATION, authorization))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(0)));
+
+		AppUser blockedUser = appUserRepository.findByEmployeeId(savedEmployee.getId()).orElseThrow();
+		org.assertj.core.api.Assertions.assertThat(blockedUser.isBlocked()).isTrue();
+
+		AuthRequest loginRequest = new AuthRequest("ada@example.com", "password123");
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(loginRequest)))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.message").value("Account is blocked. Please contact administrator."));
 	}
 
 	@Test
@@ -253,6 +303,16 @@ class EmployeeControllerIntegrationTests {
 		user.setName(name);
 		user.setPasswordHash(passwordService.hash(password));
 		user.setRole(UserRole.ADMIN);
+		appUserRepository.save(user);
+	}
+
+	private void createEmployeeUser(Employee employee, String password, UserRole role) {
+		AppUser user = new AppUser();
+		user.setEmail(employee.getEmail());
+		user.setName(employee.getFirstName() + " " + employee.getLastName());
+		user.setEmployee(employee);
+		user.setPasswordHash(passwordService.hash(password));
+		user.setRole(role);
 		appUserRepository.save(user);
 	}
 }

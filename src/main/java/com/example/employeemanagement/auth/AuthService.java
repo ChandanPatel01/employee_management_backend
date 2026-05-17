@@ -39,6 +39,10 @@ public class AuthService {
 		AppUser user = appUserRepository.findByEmail(email)
 				.orElseThrow(InvalidCredentialsException::new);
 
+		if (user.isBlocked()) {
+			throw new AccountBlockedException();
+		}
+
 		if (!passwordService.verify(request.password(), user.getPasswordHash())) {
 			throw new InvalidCredentialsException();
 		}
