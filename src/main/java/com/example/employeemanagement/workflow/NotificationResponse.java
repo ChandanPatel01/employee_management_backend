@@ -17,7 +17,7 @@ public record NotificationResponse(
 				notification == null ? null : notification.getTitle(),
 				notification == null ? null : notification.getMessage(),
 				notification == null ? null : notification.getType(),
-				notification != null && notification.isRead(),
+				notification != null && notification.isReadFlag(),
 				notification == null ? null : notification.getCreatedAt());
 	}
 }

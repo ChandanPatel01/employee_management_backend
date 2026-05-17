@@ -39,8 +39,8 @@ public class UserNotification {
 	@Column(nullable = false, length = 40)
 	private NotificationType type = NotificationType.GENERAL;
 
-	@Column(nullable = false)
-	private boolean read = false;
+	@Column(name = "is_read", nullable = false)
+	private boolean readFlag = false;
 
 	@Column(nullable = false, updatable = false)
 	private Instant createdAt = Instant.now();
@@ -86,11 +86,19 @@ public class UserNotification {
 	}
 
 	public boolean isRead() {
-		return read;
+		return isReadFlag();
 	}
 
 	public void setRead(boolean read) {
-		this.read = read;
+		setReadFlag(read);
+	}
+
+	public boolean isReadFlag() {
+		return readFlag;
+	}
+
+	public void setReadFlag(boolean readFlag) {
+		this.readFlag = readFlag;
 	}
 
 	public Instant getCreatedAt() {

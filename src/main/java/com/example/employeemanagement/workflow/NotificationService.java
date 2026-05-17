@@ -34,13 +34,13 @@ public class NotificationService {
 			throw new WorkflowException("You can update only your notifications.");
 		}
 
-		notification.setRead(true);
+		notification.setReadFlag(true);
 		return NotificationResponse.from(notificationRepository.save(notification));
 	}
 
 	public void markAllRead(long userId) {
 		List<UserNotification> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
-		notifications.forEach((notification) -> notification.setRead(true));
+		notifications.forEach((notification) -> notification.setReadFlag(true));
 		notificationRepository.saveAll(notifications);
 	}
 

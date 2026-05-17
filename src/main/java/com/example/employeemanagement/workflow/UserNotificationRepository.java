@@ -15,5 +15,5 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
 	@EntityGraph(attributePaths = "user")
 	List<UserNotification> findByUserIdOrderByCreatedAtDesc(Long userId);
 
-	long countByUserIdAndReadFalse(Long userId);
+	long countByUserIdAndReadFlagFalse(Long userId);
 }

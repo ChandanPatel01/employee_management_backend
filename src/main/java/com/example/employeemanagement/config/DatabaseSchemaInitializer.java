@@ -56,7 +56,7 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 						title VARCHAR(255) NOT NULL,
 						message VARCHAR(2000) NOT NULL,
 						type VARCHAR(40) NOT NULL DEFAULT 'GENERAL',
-						`read` TINYINT(1) NOT NULL DEFAULT 0,
+						is_read TINYINT(1) NOT NULL DEFAULT 0,
 						created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 						PRIMARY KEY (id),
 						INDEX idx_user_notifications_user_created_at (user_id, created_at)
@@ -77,8 +77,11 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 		if (!columnExists(connection, "user_notifications", "type")) {
 			jdbcTemplate.execute("ALTER TABLE user_notifications ADD COLUMN type VARCHAR(40) NOT NULL DEFAULT 'GENERAL'");
 		}
-		if (!columnExists(connection, "user_notifications", "read")) {
-			jdbcTemplate.execute("ALTER TABLE user_notifications ADD COLUMN `read` TINYINT(1) NOT NULL DEFAULT 0");
+		if (!columnExists(connection, "user_notifications", "is_read")) {
+			jdbcTemplate.execute("ALTER TABLE user_notifications ADD COLUMN is_read TINYINT(1) NOT NULL DEFAULT 0");
+		}
+		if (columnExists(connection, "user_notifications", "read")) {
+			jdbcTemplate.execute("UPDATE user_notifications SET is_read = CASE WHEN is_read = 1 THEN 1 ELSE COALESCE(`read`, 0) END");
 		}
 		if (!columnExists(connection, "user_notifications", "created_at")) {
 			jdbcTemplate.execute("ALTER TABLE user_notifications ADD COLUMN created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
