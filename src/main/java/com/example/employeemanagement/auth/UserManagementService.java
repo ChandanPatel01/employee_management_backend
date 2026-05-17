@@ -1,5 +1,8 @@
 package com.example.employeemanagement.auth;
 
+import com.example.employeemanagement.email.BrevoEmailService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -9,12 +12,21 @@ import java.util.List;
 @Transactional
 public class UserManagementService {
 
+	private static final Logger logger = LoggerFactory.getLogger(UserManagementService.class);
+	private static final String ONBOARDING_EMAIL_SENT_MESSAGE = "User created and onboarding email sent.";
+	private static final String ONBOARDING_EMAIL_FAILED_MESSAGE = "User created, but onboarding email could not be sent.";
+
 	private final AppUserRepository appUserRepository;
 	private final PasswordService passwordService;
+	private final BrevoEmailService brevoEmailService;
 
-	public UserManagementService(AppUserRepository appUserRepository, PasswordService passwordService) {
+	public UserManagementService(
+			AppUserRepository appUserRepository,
+			PasswordService passwordService,
+			BrevoEmailService brevoEmailService) {
 		this.appUserRepository = appUserRepository;
 		this.passwordService = passwordService;
+		this.brevoEmailService = brevoEmailService;
 	}
 
 	@Transactional(readOnly = true)
@@ -28,7 +40,7 @@ public class UserManagementService {
 				.toList();
 	}
 
-	public ManagedUserResponse createUser(CreateUserRequest request, long actorId) {
+	public CreateUserResponse createUser(CreateUserRequest request, long actorId) {
 		AppUser actor = getActor(actorId);
 		UserRole newRole = request.role();
 
@@ -50,7 +62,11 @@ public class UserManagementService {
 		user.setPasswordChangedAt(null);
 		user.setCreatedBy(actor.getEmail());
 
-		return ManagedUserResponse.from(appUserRepository.save(user), actor.getRole() == UserRole.ADMIN);
+		AppUser savedUser = appUserRepository.saveAndFlush(user);
+		boolean onboardingEmailSent = sendOnboardingEmailSafely(savedUser, request.temporaryPassword());
+		String message = onboardingEmailSent ? ONBOARDING_EMAIL_SENT_MESSAGE : ONBOARDING_EMAIL_FAILED_MESSAGE;
+
+		return CreateUserResponse.from(savedUser, actor.getRole() == UserRole.ADMIN, onboardingEmailSent, message);
 	}
 
 	private AppUser getActor(long actorId) {
@@ -78,5 +94,18 @@ public class UserManagementService {
 
 	private String normalizeEmail(String email) {
 		return email.trim().toLowerCase();
+	}
+
+	private boolean sendOnboardingEmailSafely(AppUser user, String temporaryPassword) {
+		try {
+			return brevoEmailService.sendOnboardingEmail(
+					user.getName(),
+					user.getEmail(),
+					temporaryPassword,
+					user.getRole());
+		} catch (Exception exception) {
+			logger.error("User {} was created, but onboarding email failed.", user.getId(), exception);
+			return false;
+		}
 	}
 }

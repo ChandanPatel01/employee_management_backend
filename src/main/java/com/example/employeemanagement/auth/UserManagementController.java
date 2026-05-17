@@ -29,7 +29,7 @@ public class UserManagementController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public ManagedUserResponse createUser(@Valid @RequestBody CreateUserRequest request, HttpServletRequest servletRequest) {
+	public CreateUserResponse createUser(@Valid @RequestBody CreateUserRequest request, HttpServletRequest servletRequest) {
 		return userManagementService.createUser(request, authenticatedUserId(servletRequest));
 	}
 
