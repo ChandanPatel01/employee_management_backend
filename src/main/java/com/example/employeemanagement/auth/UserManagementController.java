@@ -4,7 +4,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -31,6 +33,24 @@ public class UserManagementController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public CreateUserResponse createUser(@Valid @RequestBody CreateUserRequest request, HttpServletRequest servletRequest) {
 		return userManagementService.createUser(request, authenticatedUserId(servletRequest));
+	}
+
+	@PutMapping("/{id}/block")
+	public ManagedUserResponse blockUser(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
+		return userManagementService.setUserBlocked(id, true, authenticatedUserId(servletRequest));
+	}
+
+	@PutMapping("/{id}/unblock")
+	public ManagedUserResponse unblockUser(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
+		return userManagementService.setUserBlocked(id, false, authenticatedUserId(servletRequest));
+	}
+
+	@PutMapping("/{id}/reset-password")
+	public ManagedUserResponse resetUserPassword(
+			@PathVariable("id") Long id,
+			@Valid @RequestBody ResetUserPasswordRequest request,
+			HttpServletRequest servletRequest) {
+		return userManagementService.resetUserPassword(id, request.temporaryPassword(), authenticatedUserId(servletRequest));
 	}
 
 	private long authenticatedUserId(HttpServletRequest request) {

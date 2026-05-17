@@ -19,6 +19,7 @@ public record ManagedUserResponse(
 		String phone,
 		String createdBy,
 		Instant createdAt,
+		boolean blocked,
 		Boolean forcePasswordChange,
 		Boolean passwordChanged,
 		Instant passwordChangedAt
@@ -39,6 +40,7 @@ public record ManagedUserResponse(
 				employee == null ? null : employee.getPhone(),
 				user == null ? null : user.getCreatedBy(),
 				user == null ? null : user.getCreatedAt(),
+				user != null && user.isBlocked(),
 				includePasswordTracking && user != null ? user.isForcePasswordChange() : null,
 				includePasswordTracking && user != null ? user.isPasswordChanged() : null,
 				includePasswordTracking && user != null ? user.getPasswordChangedAt() : null);

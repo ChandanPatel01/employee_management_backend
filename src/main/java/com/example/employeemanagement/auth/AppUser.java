@@ -46,6 +46,9 @@ public class AppUser {
 	private boolean forcePasswordChange = false;
 
 	@Column(nullable = false)
+	private boolean blocked = false;
+
+	@Column(nullable = false)
 	private boolean passwordChanged = true;
 
 	private Instant passwordChangedAt;
@@ -112,6 +115,14 @@ public class AppUser {
 
 	public void setForcePasswordChange(boolean forcePasswordChange) {
 		this.forcePasswordChange = forcePasswordChange;
+	}
+
+	public boolean isBlocked() {
+		return blocked;
+	}
+
+	public void setBlocked(boolean blocked) {
+		this.blocked = blocked;
 	}
 
 	public boolean isPasswordChanged() {

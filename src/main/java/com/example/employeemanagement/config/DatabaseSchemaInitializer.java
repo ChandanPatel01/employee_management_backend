@@ -114,6 +114,9 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 		if (!columnExists(connection, "app_users", "force_password_change")) {
 			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN force_password_change TINYINT(1) NOT NULL DEFAULT 0");
 		}
+		if (!columnExists(connection, "app_users", "blocked")) {
+			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN blocked TINYINT(1) NOT NULL DEFAULT 0");
+		}
 		if (!columnExists(connection, "app_users", "password_changed")) {
 			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN password_changed TINYINT(1) NOT NULL DEFAULT 1");
 		}

@@ -90,14 +90,60 @@ public class UserManagementService {
 		return CreateUserResponse.from(savedUser, canViewPasswordTracking(actor.getRole()), onboardingEmailSent, message);
 	}
 
+	public ManagedUserResponse setUserBlocked(Long userId, boolean blocked, long actorId) {
+		AppUser actor = getActor(actorId);
+		ensureAdminOrFounder(actor.getRole());
+		AppUser user = getTargetUser(userId);
+		ensureNotSelf(actor, user);
+
+		user.setBlocked(blocked);
+		return ManagedUserResponse.from(appUserRepository.save(user), true);
+	}
+
+	public ManagedUserResponse resetUserPassword(Long userId, String temporaryPassword, long actorId) {
+		AppUser actor = getActor(actorId);
+		ensureAdminOrFounder(actor.getRole());
+		AppUser user = getTargetUser(userId);
+		ensureNotSelf(actor, user);
+
+		user.setPasswordHash(passwordService.hash(requireTemporaryPassword(temporaryPassword)));
+		user.setForcePasswordChange(true);
+		user.setPasswordChanged(false);
+		user.setPasswordChangedAt(null);
+		return ManagedUserResponse.from(appUserRepository.save(user), true);
+	}
+
 	private AppUser getActor(long actorId) {
 		return appUserRepository.findById(actorId)
 				.orElseThrow(() -> new UserManagementException("Authenticated user was not found"));
 	}
 
+	private AppUser getTargetUser(Long userId) {
+		if (userId == null) {
+			throw new UserManagementException("User is required.");
+		}
+
+		return appUserRepository.findById(userId)
+				.orElseThrow(() -> new UserManagementException("User was not found."));
+	}
+
 	private void ensureCanCreateUsers(UserRole actorRole) {
 		if (actorRole != UserRole.ADMIN && actorRole != UserRole.FOUNDER && actorRole != UserRole.HR) {
 			throw new UserManagementException("Only ADMIN, FOUNDER, or HR can create users.");
+		}
+	}
+
+	private void ensureAdminOrFounder(UserRole actorRole) {
+		if (actorRole == UserRole.ADMIN || actorRole == UserRole.FOUNDER) {
+			return;
+		}
+
+		throw new UserManagementException("Only ADMIN or FOUNDER can manage account access.");
+	}
+
+	private void ensureNotSelf(AppUser actor, AppUser user) {
+		if (actor.getId() != null && actor.getId().equals(user.getId())) {
+			throw new UserManagementException("Use Change Password for your own account.");
 		}
 	}
 
