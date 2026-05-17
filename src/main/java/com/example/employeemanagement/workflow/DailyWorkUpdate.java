@@ -2,6 +2,7 @@ package com.example.employeemanagement.workflow;
 
 import com.example.employeemanagement.auth.AppUser;
 import com.example.employeemanagement.employee.Employee;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -19,6 +20,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "daily_work_updates")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class DailyWorkUpdate {
 
 	@Id

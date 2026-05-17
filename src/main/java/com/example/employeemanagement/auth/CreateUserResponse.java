@@ -31,24 +31,33 @@ public record CreateUserResponse(
 			boolean includePasswordTracking,
 			boolean onboardingEmailSent,
 			String message) {
-		Employee employee = user.getEmployee();
+		Employee employee = user == null ? null : user.getEmployee();
 		return new CreateUserResponse(
-				user.getId(),
-				user.getName(),
-				user.getEmail(),
-				user.getRole(),
+				user == null ? null : user.getId(),
+				user == null ? null : user.getName(),
+				user == null ? null : user.getEmail(),
+				user == null ? null : user.getRole(),
 				employee == null ? null : employee.getId(),
 				employee == null ? null : employee.getEmployeeCode(),
-				employee == null ? null : employee.getFirstName() + " " + employee.getLastName(),
+				fullName(employee),
 				employee == null ? null : employee.getDepartment(),
 				employee == null ? null : employee.getJobTitle(),
 				employee == null ? null : employee.getPhone(),
-				user.getCreatedBy(),
-				user.getCreatedAt(),
-				includePasswordTracking ? user.isForcePasswordChange() : null,
-				includePasswordTracking ? user.isPasswordChanged() : null,
-				includePasswordTracking ? user.getPasswordChangedAt() : null,
+				user == null ? null : user.getCreatedBy(),
+				user == null ? null : user.getCreatedAt(),
+				includePasswordTracking && user != null ? user.isForcePasswordChange() : null,
+				includePasswordTracking && user != null ? user.isPasswordChanged() : null,
+				includePasswordTracking && user != null ? user.getPasswordChangedAt() : null,
 				onboardingEmailSent,
 				message);
+	}
+
+	private static String fullName(Employee employee) {
+		if (employee == null) {
+			return null;
+		}
+		return ("%s %s".formatted(
+				employee.getFirstName() == null ? "" : employee.getFirstName(),
+				employee.getLastName() == null ? "" : employee.getLastName())).trim();
 	}
 }

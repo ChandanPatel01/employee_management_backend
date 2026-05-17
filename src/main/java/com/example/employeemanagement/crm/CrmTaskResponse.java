@@ -20,20 +20,20 @@ public record CrmTaskResponse(
 		Instant updatedAt
 ) {
 	public static CrmTaskResponse from(CrmTask task) {
-		Customer customer = task.getCustomer();
+		Customer customer = task == null ? null : task.getCustomer();
 		return new CrmTaskResponse(
-				task.getId(),
-				customer.getId(),
-				customer.getCompanyName(),
-				task.getTitle(),
-				task.getDescription(),
-				task.getFollowUpDate(),
-				task.getFollowUpTime(),
-				task.getPriority(),
-				task.getStatus(),
-				task.getAssignedTo(),
-				task.getReminderType(),
-				task.getCreatedAt(),
-				task.getUpdatedAt());
+				task == null ? null : task.getId(),
+				customer == null ? null : customer.getId(),
+				customer == null ? null : customer.getCompanyName(),
+				task == null ? null : task.getTitle(),
+				task == null ? null : task.getDescription(),
+				task == null ? null : task.getFollowUpDate(),
+				task == null ? null : task.getFollowUpTime(),
+				task == null ? null : task.getPriority(),
+				task == null ? null : task.getStatus(),
+				task == null ? null : task.getAssignedTo(),
+				task == null ? null : task.getReminderType(),
+				task == null ? null : task.getCreatedAt(),
+				task == null ? null : task.getUpdatedAt());
 	}
 }

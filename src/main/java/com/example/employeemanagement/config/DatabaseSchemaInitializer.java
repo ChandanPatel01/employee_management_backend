@@ -37,12 +37,54 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 		try (Connection connection = dataSource.getConnection()) {
 			String database = connection.getMetaData().getDatabaseProductName().toLowerCase();
 			if (database.contains("mysql") || database.contains("mariadb")) {
+				ensureUserNotificationsTable(connection);
 				ensureEmployeeProfileColumns(connection);
 				ensureUserRoleColumn(connection);
 				ensureUserEmployeeColumn(connection);
 				backfillUserEmployeeLinks();
 				migrateBase64Photos(connection);
 			}
+		}
+	}
+
+	private void ensureUserNotificationsTable(Connection connection) throws Exception {
+		if (!tableExists(connection, "user_notifications")) {
+			jdbcTemplate.execute("""
+					CREATE TABLE user_notifications (
+						id BIGINT NOT NULL AUTO_INCREMENT,
+						user_id BIGINT NOT NULL,
+						title VARCHAR(255) NOT NULL,
+						message VARCHAR(2000) NOT NULL,
+						type VARCHAR(40) NOT NULL DEFAULT 'GENERAL',
+						`read` TINYINT(1) NOT NULL DEFAULT 0,
+						created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+						PRIMARY KEY (id),
+						INDEX idx_user_notifications_user_created_at (user_id, created_at)
+					)
+					""");
+			return;
+		}
+
+		if (!columnExists(connection, "user_notifications", "user_id")) {
+			jdbcTemplate.execute("ALTER TABLE user_notifications ADD COLUMN user_id BIGINT NULL");
+		}
+		if (!columnExists(connection, "user_notifications", "title")) {
+			jdbcTemplate.execute("ALTER TABLE user_notifications ADD COLUMN title VARCHAR(255) NOT NULL DEFAULT 'Notification'");
+		}
+		if (!columnExists(connection, "user_notifications", "message")) {
+			jdbcTemplate.execute("ALTER TABLE user_notifications ADD COLUMN message VARCHAR(2000) NOT NULL DEFAULT ''");
+		}
+		if (!columnExists(connection, "user_notifications", "type")) {
+			jdbcTemplate.execute("ALTER TABLE user_notifications ADD COLUMN type VARCHAR(40) NOT NULL DEFAULT 'GENERAL'");
+		}
+		if (!columnExists(connection, "user_notifications", "read")) {
+			jdbcTemplate.execute("ALTER TABLE user_notifications ADD COLUMN `read` TINYINT(1) NOT NULL DEFAULT 0");
+		}
+		if (!columnExists(connection, "user_notifications", "created_at")) {
+			jdbcTemplate.execute("ALTER TABLE user_notifications ADD COLUMN created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+		}
+		if (!indexExists(connection, "user_notifications", "idx_user_notifications_user_created_at")) {
+			jdbcTemplate.execute("CREATE INDEX idx_user_notifications_user_created_at ON user_notifications (user_id, created_at)");
 		}
 	}
 
@@ -194,6 +236,12 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 	private boolean columnExists(Connection connection, String tableName, String columnName) throws Exception {
 		try (ResultSet columns = connection.getMetaData().getColumns(null, null, tableName, columnName)) {
 			return columns.next();
+		}
+	}
+
+	private boolean tableExists(Connection connection, String tableName) throws Exception {
+		try (ResultSet tables = connection.getMetaData().getTables(connection.getCatalog(), null, tableName, new String[] {"TABLE"})) {
+			return tables.next();
 		}
 	}
 

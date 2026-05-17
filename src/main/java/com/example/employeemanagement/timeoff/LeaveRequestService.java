@@ -45,20 +45,21 @@ public class LeaveRequestService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<LeaveRequest> getLeaves(LeaveStatus status, Long employeeId, long actorId) {
+	public List<LeaveResponse> getLeaves(LeaveStatus status, Long employeeId, long actorId) {
 		AppUser actor = actor(actorId);
 		if (!hasPeopleAccess(actor)) {
 			Employee actorEmployee = requireEmployee(actor);
 			if (actor.getRole() == UserRole.MANAGER) {
 				return scopedLeaves(status, employeeId).stream()
 						.filter((leave) -> sameDepartment(actorEmployee, leave.getEmployee()))
+						.map(LeaveResponse::from)
 						.toList();
 			}
 
-			return scopedLeaves(status, actorEmployee.getId());
+			return toResponses(scopedLeaves(status, actorEmployee.getId()));
 		}
 
-		return scopedLeaves(status, employeeId);
+		return toResponses(scopedLeaves(status, employeeId));
 	}
 
 	private List<LeaveRequest> scopedLeaves(LeaveStatus status, Long employeeId) {
@@ -77,7 +78,11 @@ public class LeaveRequestService {
 		return leaveRequestRepository.findAll();
 	}
 
-	public LeaveRequest createLeave(LeaveCreateRequest request, long actorId) {
+	public LeaveResponse createLeave(LeaveCreateRequest request, long actorId) {
+		if (request == null) {
+			throw new WorkflowException("Leave request is required.");
+		}
+
 		AppUser actor = actor(actorId);
 		Employee employee = employeeService.getEmployee(request.employeeId());
 		if (!hasPeopleAccess(actor) && !employee.getId().equals(requireEmployee(actor).getId())) {
@@ -86,17 +91,21 @@ public class LeaveRequestService {
 
 		LeaveRequest leaveRequest = new LeaveRequest();
 		leaveRequest.setEmployee(employee);
-		leaveRequest.setLeaveType(request.leaveType().trim());
+		leaveRequest.setLeaveType(requireValue(request.leaveType(), "Leave type is required."));
 		leaveRequest.setFromDate(request.fromDate());
 		leaveRequest.setToDate(request.toDate());
 		leaveRequest.setDescription(clean(request.description()));
 		leaveRequest.setAppliedDate(LocalDate.now());
 		leaveRequest.setStatus(LeaveStatus.PENDING);
 
-		return leaveRequestRepository.save(leaveRequest);
+		return LeaveResponse.from(leaveRequestRepository.save(leaveRequest));
 	}
 
 	public LeaveDecisionResponse updateDecision(Long id, LeaveDecisionRequest request, long actorId) {
+		if (request == null || request.status() == null) {
+			throw new WorkflowException("Leave status is required.");
+		}
+
 		AppUser actor = actor(actorId);
 		LeaveRequest leaveRequest = leaveRequestRepository.findById(id)
 				.orElseThrow(() -> new LeaveNotFoundException(id));
@@ -115,7 +124,7 @@ public class LeaveRequestService {
 				"Your leave request was updated to %s.".formatted(savedLeaveRequest.getStatus()),
 				NotificationType.LEAVE_UPDATED);
 
-		return new LeaveDecisionResponse(savedLeaveRequest, true, emailSent, message);
+		return new LeaveDecisionResponse(LeaveResponse.from(savedLeaveRequest), true, emailSent, message);
 	}
 
 	public void deleteLeave(Long id, long actorId) {
@@ -131,6 +140,19 @@ public class LeaveRequestService {
 
 	private String clean(String value) {
 		return value == null || value.isBlank() ? null : value.trim();
+	}
+
+	private String requireValue(String value, String message) {
+		if (value == null || value.isBlank()) {
+			throw new WorkflowException(message);
+		}
+		return value.trim();
+	}
+
+	private List<LeaveResponse> toResponses(List<LeaveRequest> leaveRequests) {
+		return leaveRequests.stream()
+				.map(LeaveResponse::from)
+				.toList();
 	}
 
 	private boolean sendNotificationSafely(LeaveRequest leaveRequest) {

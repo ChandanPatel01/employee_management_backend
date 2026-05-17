@@ -1,6 +1,7 @@
 package com.example.employeemanagement.workflow;
 
 import com.example.employeemanagement.auth.AppUser;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -17,6 +18,7 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "user_notifications")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class UserNotification {
 
 	@Id

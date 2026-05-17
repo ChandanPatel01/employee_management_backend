@@ -1,6 +1,7 @@
 package com.example.employeemanagement.timeoff;
 
 import com.example.employeemanagement.employee.Employee;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,6 +21,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "leave_requests")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class LeaveRequest {
 
 	@Id

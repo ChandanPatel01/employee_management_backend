@@ -16,17 +16,17 @@ public record CommunicationResponse(
 		Instant createdAt
 ) {
 	public static CommunicationResponse from(CustomerCommunication communication) {
-		Customer customer = communication.getCustomer();
+		Customer customer = communication == null ? null : communication.getCustomer();
 		return new CommunicationResponse(
-				communication.getId(),
-				customer.getId(),
-				customer.getCompanyName(),
-				communication.getCommunicationType(),
-				communication.getSubject(),
-				communication.getSummary(),
-				communication.getCommunicationDate(),
-				communication.getNextAction(),
-				communication.getCreatedBy(),
-				communication.getCreatedAt());
+				communication == null ? null : communication.getId(),
+				customer == null ? null : customer.getId(),
+				customer == null ? null : customer.getCompanyName(),
+				communication == null ? null : communication.getCommunicationType(),
+				communication == null ? null : communication.getSubject(),
+				communication == null ? null : communication.getSummary(),
+				communication == null ? null : communication.getCommunicationDate(),
+				communication == null ? null : communication.getNextAction(),
+				communication == null ? null : communication.getCreatedBy(),
+				communication == null ? null : communication.getCreatedAt());
 	}
 }

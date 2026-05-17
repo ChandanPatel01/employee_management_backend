@@ -28,7 +28,7 @@ public class LeaveRequestController {
 	}
 
 	@GetMapping
-	public List<LeaveRequest> getLeaves(
+	public List<LeaveResponse> getLeaves(
 			@RequestParam(name = "status", required = false) LeaveStatus status,
 			@RequestParam(name = "employeeId", required = false) Long employeeId,
 			HttpServletRequest servletRequest) {
@@ -37,7 +37,7 @@ public class LeaveRequestController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public LeaveRequest createLeave(@Valid @RequestBody LeaveCreateRequest request, HttpServletRequest servletRequest) {
+	public LeaveResponse createLeave(@Valid @RequestBody LeaveCreateRequest request, HttpServletRequest servletRequest) {
 		return leaveRequestService.createLeave(request, authenticatedUserId(servletRequest));
 	}
 

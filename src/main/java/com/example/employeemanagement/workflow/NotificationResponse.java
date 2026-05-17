@@ -13,11 +13,11 @@ public record NotificationResponse(
 
 	public static NotificationResponse from(UserNotification notification) {
 		return new NotificationResponse(
-				notification.getId(),
-				notification.getTitle(),
-				notification.getMessage(),
-				notification.getType(),
-				notification.isRead(),
-				notification.getCreatedAt());
+				notification == null ? null : notification.getId(),
+				notification == null ? null : notification.getTitle(),
+				notification == null ? null : notification.getMessage(),
+				notification == null ? null : notification.getType(),
+				notification != null && notification.isRead(),
+				notification == null ? null : notification.getCreatedAt());
 	}
 }

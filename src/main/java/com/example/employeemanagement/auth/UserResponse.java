@@ -17,13 +17,13 @@ public record UserResponse(
 ) {
 
 	public static UserResponse from(AppUser user) {
-		Employee employee = user.getEmployee();
+		Employee employee = user == null ? null : user.getEmployee();
 		return new UserResponse(
-				user.getId(),
-				user.getName(),
-				user.getEmail(),
-				user.getRole(),
-				user.isForcePasswordChange(),
+				user == null ? null : user.getId(),
+				user == null ? null : user.getName(),
+				user == null ? null : user.getEmail(),
+				user == null ? null : user.getRole(),
+				user != null && user.isForcePasswordChange(),
 				employee == null ? null : employee.getId(),
 				employee == null ? null : employee.getEmployeeCode(),
 				employee == null ? null : employee.getDepartment(),

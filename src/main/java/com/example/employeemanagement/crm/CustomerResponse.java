@@ -22,21 +22,21 @@ public record CustomerResponse(
 ) {
 	public static CustomerResponse from(Customer customer) {
 		return new CustomerResponse(
-				customer.getId(),
-				customer.getCompanyName(),
-				customer.getContactPerson(),
-				customer.getEmail(),
-				customer.getPhone(),
-				customer.getAddress(),
-				customer.getProjectName(),
-				customer.getProjectStatus(),
-				customer.getPaymentStatus(),
-				customer.getPaymentHistory(),
-				customer.getAssignedTeam(),
-				customer.getSupportTickets(),
-				customer.getPreviousCommunication(),
-				customer.getNotes(),
-				customer.getCreatedAt(),
-				customer.getUpdatedAt());
+				customer == null ? null : customer.getId(),
+				customer == null ? null : customer.getCompanyName(),
+				customer == null ? null : customer.getContactPerson(),
+				customer == null ? null : customer.getEmail(),
+				customer == null ? null : customer.getPhone(),
+				customer == null ? null : customer.getAddress(),
+				customer == null ? null : customer.getProjectName(),
+				customer == null ? null : customer.getProjectStatus(),
+				customer == null ? null : customer.getPaymentStatus(),
+				customer == null ? null : customer.getPaymentHistory(),
+				customer == null ? null : customer.getAssignedTeam(),
+				customer == null ? null : customer.getSupportTickets(),
+				customer == null ? null : customer.getPreviousCommunication(),
+				customer == null ? null : customer.getNotes(),
+				customer == null ? null : customer.getCreatedAt(),
+				customer == null ? null : customer.getUpdatedAt());
 	}
 }

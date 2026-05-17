@@ -28,26 +28,28 @@ public class EmployeeController {
 	}
 
 	@GetMapping
-	public List<Employee> getEmployees(
+	public List<EmployeeResponse> getEmployees(
 			@RequestParam(name = "department", required = false) String department,
 			HttpServletRequest servletRequest) {
-		return employeeService.getEmployees(department, authenticatedUserId(servletRequest));
+		return employeeService.getEmployees(department, authenticatedUserId(servletRequest)).stream()
+				.map(EmployeeResponse::from)
+				.toList();
 	}
 
 	@GetMapping("/{id}")
-	public Employee getEmployee(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
-		return employeeService.getEmployee(id, authenticatedUserId(servletRequest));
+	public EmployeeResponse getEmployee(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
+		return EmployeeResponse.from(employeeService.getEmployee(id, authenticatedUserId(servletRequest)));
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public Employee createEmployee(@Valid @RequestBody Employee employee, HttpServletRequest servletRequest) {
-		return employeeService.createEmployee(employee, authenticatedUserId(servletRequest));
+	public EmployeeResponse createEmployee(@Valid @RequestBody Employee employee, HttpServletRequest servletRequest) {
+		return EmployeeResponse.from(employeeService.createEmployee(employee, authenticatedUserId(servletRequest)));
 	}
 
 	@PutMapping("/{id}")
-	public Employee updateEmployee(@PathVariable("id") Long id, @Valid @RequestBody Employee employee, HttpServletRequest servletRequest) {
-		return employeeService.updateEmployee(id, employee, authenticatedUserId(servletRequest));
+	public EmployeeResponse updateEmployee(@PathVariable("id") Long id, @Valid @RequestBody Employee employee, HttpServletRequest servletRequest) {
+		return EmployeeResponse.from(employeeService.updateEmployee(id, employee, authenticatedUserId(servletRequest)));
 	}
 
 	@DeleteMapping("/{id}")

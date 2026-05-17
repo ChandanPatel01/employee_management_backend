@@ -29,7 +29,8 @@ public class NotificationService {
 	public NotificationResponse markRead(Long id, long userId) {
 		UserNotification notification = notificationRepository.findById(id)
 				.orElseThrow(() -> new WorkflowException("Notification not found."));
-		if (!notification.getUser().getId().equals(userId)) {
+		Long notificationUserId = notification.getUser() == null ? null : notification.getUser().getId();
+		if (notificationUserId == null || !notificationUserId.equals(userId)) {
 			throw new WorkflowException("You can update only your notifications.");
 		}
 
@@ -57,6 +58,10 @@ public class NotificationService {
 	}
 
 	public void notifyEmployee(Long employeeId, String title, String message, NotificationType type) {
+		if (employeeId == null) {
+			return;
+		}
+
 		appUserRepository.findByEmployeeId(employeeId)
 				.ifPresent((user) -> notifyUser(user, title, message, type));
 	}
