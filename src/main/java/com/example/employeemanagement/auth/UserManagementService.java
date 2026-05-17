@@ -5,6 +5,8 @@ import com.example.employeemanagement.employee.Employee;
 import com.example.employeemanagement.employee.EmployeeRepository;
 import com.example.employeemanagement.employee.EmployeeService;
 import com.example.employeemanagement.employee.EmploymentStatus;
+import com.example.employeemanagement.workflow.NotificationService;
+import com.example.employeemanagement.workflow.NotificationType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -27,27 +29,31 @@ public class UserManagementService {
 	private final BrevoEmailService brevoEmailService;
 	private final EmployeeService employeeService;
 	private final EmployeeRepository employeeRepository;
+	private final NotificationService notificationService;
 
 	public UserManagementService(
 			AppUserRepository appUserRepository,
 			PasswordService passwordService,
 			BrevoEmailService brevoEmailService,
 			EmployeeService employeeService,
-			EmployeeRepository employeeRepository) {
+			EmployeeRepository employeeRepository,
+			NotificationService notificationService) {
 		this.appUserRepository = appUserRepository;
 		this.passwordService = passwordService;
 		this.brevoEmailService = brevoEmailService;
 		this.employeeService = employeeService;
 		this.employeeRepository = employeeRepository;
+		this.notificationService = notificationService;
 	}
 
 	@Transactional(readOnly = true)
 	public List<ManagedUserResponse> getUsers(long actorId) {
 		AppUser actor = getActor(actorId);
 		ensureCanCreateUsers(actor.getRole());
+		boolean includePasswordTracking = canViewPasswordTracking(actor.getRole());
 
 		return appUserRepository.findAll().stream()
-				.map((user) -> ManagedUserResponse.from(user, true))
+				.map((user) -> ManagedUserResponse.from(user, includePasswordTracking))
 				.toList();
 	}
 
@@ -77,10 +83,11 @@ public class UserManagementService {
 		user.setCreatedBy(actor.getEmail());
 
 		AppUser savedUser = appUserRepository.saveAndFlush(user);
+		notifyOnboardingCompleteSafely(savedUser);
 		boolean onboardingEmailSent = sendOnboardingEmailSafely(savedUser, temporaryPassword);
 		String message = onboardingEmailSent ? ONBOARDING_EMAIL_SENT_MESSAGE : ONBOARDING_EMAIL_FAILED_MESSAGE;
 
-		return CreateUserResponse.from(savedUser, true, onboardingEmailSent, message);
+		return CreateUserResponse.from(savedUser, canViewPasswordTracking(actor.getRole()), onboardingEmailSent, message);
 	}
 
 	private AppUser getActor(long actorId) {
@@ -104,6 +111,10 @@ public class UserManagementService {
 		}
 
 		throw new UserManagementException("HR can create only EMPLOYEE, INTERN, or MANAGER users.");
+	}
+
+	private boolean canViewPasswordTracking(UserRole actorRole) {
+		return actorRole == UserRole.ADMIN || actorRole == UserRole.FOUNDER;
 	}
 
 	private String normalizeEmail(String email) {
@@ -260,6 +271,18 @@ public class UserManagementService {
 		} catch (Exception exception) {
 			logger.error("User {} was created, but onboarding email failed.", user.getId(), exception);
 			return false;
+		}
+	}
+
+	private void notifyOnboardingCompleteSafely(AppUser user) {
+		try {
+			notificationService.notifyUser(
+					user,
+					"Welcome to MensPingo EMS",
+					"Your MensPingo Employee Management System account is ready.",
+					NotificationType.ONBOARDING_COMPLETE);
+		} catch (Exception exception) {
+			logger.warn("User {} was created, but onboarding notification could not be stored.", user.getId(), exception);
 		}
 	}
 }

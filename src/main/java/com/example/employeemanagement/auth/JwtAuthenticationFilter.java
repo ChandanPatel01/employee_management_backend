@@ -89,13 +89,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			return true;
 		}
 
+		if (path.startsWith("/api/tasks")
+				|| path.startsWith("/api/daily-updates")
+				|| path.startsWith("/api/notifications")) {
+			return true;
+		}
+
 		if (path.startsWith("/api/users")) {
 			return hasAny(role, UserRole.ADMIN, UserRole.FOUNDER, UserRole.HR);
 		}
 
-		if (path.startsWith("/api/employees")
-				|| path.startsWith("/api/leaves")
-				|| path.startsWith("/api/uploads")) {
+		if (path.startsWith("/api/leaves")) {
+			return true;
+		}
+
+		if (path.startsWith("/api/employees")) {
+			return true;
+		}
+
+		if (path.startsWith("/api/uploads")) {
 			return hasAny(role, UserRole.ADMIN, UserRole.FOUNDER, UserRole.HR);
 		}
 

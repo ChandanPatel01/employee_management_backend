@@ -1,5 +1,7 @@
 package com.example.employeemanagement.employee;
 
+import com.example.employeemanagement.auth.InvalidCredentialsException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,29 +28,40 @@ public class EmployeeController {
 	}
 
 	@GetMapping
-	public List<Employee> getEmployees(@RequestParam(name = "department", required = false) String department) {
-		return employeeService.getEmployees(department);
+	public List<Employee> getEmployees(
+			@RequestParam(name = "department", required = false) String department,
+			HttpServletRequest servletRequest) {
+		return employeeService.getEmployees(department, authenticatedUserId(servletRequest));
 	}
 
 	@GetMapping("/{id}")
-	public Employee getEmployee(@PathVariable("id") Long id) {
-		return employeeService.getEmployee(id);
+	public Employee getEmployee(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
+		return employeeService.getEmployee(id, authenticatedUserId(servletRequest));
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public Employee createEmployee(@Valid @RequestBody Employee employee) {
-		return employeeService.createEmployee(employee);
+	public Employee createEmployee(@Valid @RequestBody Employee employee, HttpServletRequest servletRequest) {
+		return employeeService.createEmployee(employee, authenticatedUserId(servletRequest));
 	}
 
 	@PutMapping("/{id}")
-	public Employee updateEmployee(@PathVariable("id") Long id, @Valid @RequestBody Employee employee) {
-		return employeeService.updateEmployee(id, employee);
+	public Employee updateEmployee(@PathVariable("id") Long id, @Valid @RequestBody Employee employee, HttpServletRequest servletRequest) {
+		return employeeService.updateEmployee(id, employee, authenticatedUserId(servletRequest));
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void deleteEmployee(@PathVariable("id") Long id) {
-		employeeService.deleteEmployee(id);
+	public void deleteEmployee(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
+		employeeService.deleteEmployee(id, authenticatedUserId(servletRequest));
+	}
+
+	private long authenticatedUserId(HttpServletRequest request) {
+		Object userId = request.getAttribute("authenticatedUserId");
+		if (userId instanceof Number number) {
+			return number.longValue();
+		}
+
+		throw new InvalidCredentialsException();
 	}
 }

@@ -1,5 +1,7 @@
 package com.example.employeemanagement.timeoff;
 
+import com.example.employeemanagement.auth.InvalidCredentialsException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,24 +30,37 @@ public class LeaveRequestController {
 	@GetMapping
 	public List<LeaveRequest> getLeaves(
 			@RequestParam(name = "status", required = false) LeaveStatus status,
-			@RequestParam(name = "employeeId", required = false) Long employeeId) {
-		return leaveRequestService.getLeaves(status, employeeId);
+			@RequestParam(name = "employeeId", required = false) Long employeeId,
+			HttpServletRequest servletRequest) {
+		return leaveRequestService.getLeaves(status, employeeId, authenticatedUserId(servletRequest));
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public LeaveRequest createLeave(@Valid @RequestBody LeaveCreateRequest request) {
-		return leaveRequestService.createLeave(request);
+	public LeaveRequest createLeave(@Valid @RequestBody LeaveCreateRequest request, HttpServletRequest servletRequest) {
+		return leaveRequestService.createLeave(request, authenticatedUserId(servletRequest));
 	}
 
 	@PutMapping("/{id}/decision")
-	public LeaveDecisionResponse updateDecision(@PathVariable("id") Long id, @Valid @RequestBody LeaveDecisionRequest request) {
-		return leaveRequestService.updateDecision(id, request);
+	public LeaveDecisionResponse updateDecision(
+			@PathVariable("id") Long id,
+			@Valid @RequestBody LeaveDecisionRequest request,
+			HttpServletRequest servletRequest) {
+		return leaveRequestService.updateDecision(id, request, authenticatedUserId(servletRequest));
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void deleteLeave(@PathVariable("id") Long id) {
-		leaveRequestService.deleteLeave(id);
+	public void deleteLeave(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
+		leaveRequestService.deleteLeave(id, authenticatedUserId(servletRequest));
+	}
+
+	private long authenticatedUserId(HttpServletRequest request) {
+		Object userId = request.getAttribute("authenticatedUserId");
+		if (userId instanceof Number number) {
+			return number.longValue();
+		}
+
+		throw new InvalidCredentialsException();
 	}
 }

@@ -1,0 +1,12 @@
+package com.example.employeemanagement.workflow;
+
+public enum NotificationType {
+	TASK_ASSIGNED,
+	TASK_UPDATED,
+	DAILY_UPDATE_SUBMITTED,
+	DAILY_UPDATE_REVIEWED,
+	LEAVE_UPDATED,
+	DOCUMENT_UPLOADED,
+	ONBOARDING_COMPLETE,
+	GENERAL
+}
