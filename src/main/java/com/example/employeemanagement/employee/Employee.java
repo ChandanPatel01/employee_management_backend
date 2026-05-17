@@ -48,6 +48,8 @@ public class Employee {
 	@Column(nullable = false)
 	private String jobTitle;
 
+	private String phone;
+
 	@NotNull
 	@PositiveOrZero
 	@Column(nullable = false)
@@ -128,6 +130,14 @@ public class Employee {
 
 	public void setJobTitle(String jobTitle) {
 		this.jobTitle = jobTitle;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
 	}
 
 	public BigDecimal getSalary() {

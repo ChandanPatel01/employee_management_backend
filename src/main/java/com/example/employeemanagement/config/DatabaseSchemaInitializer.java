@@ -37,18 +37,28 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 		try (Connection connection = dataSource.getConnection()) {
 			String database = connection.getMetaData().getDatabaseProductName().toLowerCase();
 			if (database.contains("mysql") || database.contains("mariadb")) {
+				ensureEmployeeProfileColumns(connection);
 				ensureUserRoleColumn(connection);
+				ensureUserEmployeeColumn(connection);
+				backfillUserEmployeeLinks();
 				migrateBase64Photos(connection);
-				if (!columnExists(connection, "employees", "employee_code")) {
-					jdbcTemplate.execute("ALTER TABLE employees ADD COLUMN employee_code VARCHAR(32)");
-				}
-				jdbcTemplate.execute("""
-						UPDATE employees
-						SET employee_code = CONCAT(UPPER(SUBSTRING(first_name, 1, 1)), UPPER(SUBSTRING(last_name, 1, 1)), LPAD(id, 4, '0'))
-						WHERE employee_code IS NULL OR employee_code = ''
-						""");
 			}
 		}
+	}
+
+	private void ensureEmployeeProfileColumns(Connection connection) throws Exception {
+		if (!columnExists(connection, "employees", "employee_code")) {
+			jdbcTemplate.execute("ALTER TABLE employees ADD COLUMN employee_code VARCHAR(32)");
+		}
+		if (!columnExists(connection, "employees", "phone")) {
+			jdbcTemplate.execute("ALTER TABLE employees ADD COLUMN phone VARCHAR(255)");
+		}
+
+		jdbcTemplate.execute("""
+				UPDATE employees
+				SET employee_code = CONCAT(UPPER(SUBSTRING(first_name, 1, 1)), UPPER(SUBSTRING(last_name, 1, 1)), LPAD(id, 4, '0'))
+				WHERE employee_code IS NULL OR employee_code = ''
+				""");
 	}
 
 	private void ensureUserRoleColumn(Connection connection) throws Exception {
@@ -56,8 +66,7 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'EMPLOYEE'");
 		}
 
-		jdbcTemplate.execute("UPDATE app_users SET role = 'ADMIN' WHERE role = 'FOUNDER'");
-		jdbcTemplate.execute("UPDATE app_users SET role = 'EMPLOYEE' WHERE role IS NULL OR role = '' OR role = 'USER' OR role NOT IN ('EMPLOYEE', 'INTERN', 'MANAGER', 'HR', 'ADMIN')");
+		jdbcTemplate.execute("UPDATE app_users SET role = 'EMPLOYEE' WHERE role IS NULL OR role = '' OR role = 'USER' OR role NOT IN ('EMPLOYEE', 'INTERN', 'MANAGER', 'HR', 'ADMIN', 'FOUNDER')");
 		jdbcTemplate.execute("ALTER TABLE app_users MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'EMPLOYEE'");
 
 		if (!columnExists(connection, "app_users", "force_password_change")) {
@@ -72,6 +81,88 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 		if (!columnExists(connection, "app_users", "created_by")) {
 			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN created_by VARCHAR(255)");
 		}
+	}
+
+	private void ensureUserEmployeeColumn(Connection connection) throws Exception {
+		if (!columnExists(connection, "app_users", "employee_id")) {
+			jdbcTemplate.execute("ALTER TABLE app_users ADD COLUMN employee_id BIGINT NULL");
+		}
+
+		if (!indexExists(connection, "app_users", "uk_app_users_employee_id")) {
+			jdbcTemplate.execute("CREATE UNIQUE INDEX uk_app_users_employee_id ON app_users (employee_id)");
+		}
+	}
+
+	private void backfillUserEmployeeLinks() {
+		jdbcTemplate.execute("""
+				UPDATE app_users u
+				JOIN employees e ON LOWER(e.email) = LOWER(u.email)
+				SET u.employee_id = e.id
+				WHERE u.employee_id IS NULL
+				""");
+
+		jdbcTemplate.execute("""
+				INSERT INTO employees (
+					employee_code,
+					first_name,
+					last_name,
+					email,
+					department,
+					job_title,
+					salary,
+					hire_date,
+					status
+				)
+				SELECT
+					CONCAT('U', LPAD(u.id, 5, '0')),
+					COALESCE(NULLIF(SUBSTRING_INDEX(TRIM(COALESCE(u.name, '')), ' ', 1), ''), CASE u.role
+						WHEN 'FOUNDER' THEN 'Founder'
+						WHEN 'ADMIN' THEN 'Administrator'
+						WHEN 'HR' THEN 'HR Executive'
+						WHEN 'MANAGER' THEN 'Manager'
+						WHEN 'INTERN' THEN 'Intern'
+						ELSE 'Employee'
+					END),
+					COALESCE(NULLIF(
+						CASE
+							WHEN TRIM(COALESCE(u.name, '')) LIKE '% %'
+								THEN TRIM(SUBSTRING(TRIM(u.name), LOCATE(' ', TRIM(u.name)) + 1))
+							ELSE 'User'
+						END,
+						''
+					), 'User'),
+					u.email,
+					CASE u.role
+						WHEN 'FOUNDER' THEN 'Leadership'
+						WHEN 'ADMIN' THEN 'Administration'
+						WHEN 'HR' THEN 'Human Resources'
+						WHEN 'MANAGER' THEN 'Management'
+						WHEN 'INTERN' THEN 'Internship'
+						ELSE 'Operations'
+					END,
+					CASE u.role
+						WHEN 'FOUNDER' THEN 'Founder'
+						WHEN 'ADMIN' THEN 'Administrator'
+						WHEN 'HR' THEN 'HR Executive'
+						WHEN 'MANAGER' THEN 'Manager'
+						WHEN 'INTERN' THEN 'Intern'
+						ELSE 'Employee'
+					END,
+					0,
+					CURRENT_DATE,
+					'ACTIVE'
+				FROM app_users u
+				LEFT JOIN employees e ON LOWER(e.email) = LOWER(u.email)
+				WHERE u.employee_id IS NULL
+					AND e.id IS NULL
+				""");
+
+		jdbcTemplate.execute("""
+				UPDATE app_users u
+				JOIN employees e ON LOWER(e.email) = LOWER(u.email)
+				SET u.employee_id = e.id
+				WHERE u.employee_id IS NULL
+				""");
 	}
 
 	private void migrateBase64Photos(Connection connection) throws Exception {
@@ -103,6 +194,18 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 	private boolean columnExists(Connection connection, String tableName, String columnName) throws Exception {
 		try (ResultSet columns = connection.getMetaData().getColumns(null, null, tableName, columnName)) {
 			return columns.next();
+		}
+	}
+
+	private boolean indexExists(Connection connection, String tableName, String indexName) throws Exception {
+		try (ResultSet indexes = connection.getMetaData().getIndexInfo(null, null, tableName, false, false)) {
+			while (indexes.next()) {
+				if (indexName.equalsIgnoreCase(indexes.getString("INDEX_NAME"))) {
+					return true;
+				}
+			}
+
+			return false;
 		}
 	}
 }

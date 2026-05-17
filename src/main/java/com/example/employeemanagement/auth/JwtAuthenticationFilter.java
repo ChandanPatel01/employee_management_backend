@@ -90,20 +90,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		}
 
 		if (path.startsWith("/api/users")) {
-			return hasAny(role, UserRole.ADMIN, UserRole.HR);
+			return hasAny(role, UserRole.ADMIN, UserRole.FOUNDER, UserRole.HR);
 		}
 
 		if (path.startsWith("/api/employees")
 				|| path.startsWith("/api/leaves")
 				|| path.startsWith("/api/uploads")) {
-			return hasAny(role, UserRole.ADMIN, UserRole.HR);
+			return hasAny(role, UserRole.ADMIN, UserRole.FOUNDER, UserRole.HR);
 		}
 
 		if (path.startsWith("/api/crm/")) {
-			return hasAny(role, UserRole.ADMIN, UserRole.MANAGER);
+			return hasAny(role, UserRole.ADMIN, UserRole.FOUNDER, UserRole.MANAGER);
 		}
 
-		return role == UserRole.ADMIN;
+		return role == UserRole.ADMIN || role == UserRole.FOUNDER;
 	}
 
 	private boolean hasAny(UserRole actualRole, UserRole... allowedRoles) {
