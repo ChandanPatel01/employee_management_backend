@@ -1,6 +1,7 @@
 package com.example.employeemanagement.auth;
 
 import com.example.employeemanagement.employee.ApiError;
+import com.example.employeemanagement.employee.EmploymentStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -51,8 +52,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				return;
 			}
 
-			if (user.isBlocked()) {
-				forbidden(response, "Account is blocked. Please contact administrator.");
+			if (isInactive(user)) {
+				forbidden(response, "Your account is inactive. Please contact admin.");
 				return;
 			}
 
@@ -131,6 +132,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		}
 
 		return false;
+	}
+
+	private boolean isInactive(AppUser user) {
+		return user.isBlocked()
+				|| (user.getEmployee() != null && user.getEmployee().getStatus() == EmploymentStatus.INACTIVE);
 	}
 
 	private void unauthorized(HttpServletResponse response, String message) throws IOException {

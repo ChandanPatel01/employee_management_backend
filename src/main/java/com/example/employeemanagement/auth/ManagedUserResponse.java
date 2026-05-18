@@ -1,6 +1,7 @@
 package com.example.employeemanagement.auth;
 
 import com.example.employeemanagement.employee.Employee;
+import com.example.employeemanagement.employee.EmploymentStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
@@ -17,6 +18,7 @@ public record ManagedUserResponse(
 		String department,
 		String designation,
 		String phone,
+		EmploymentStatus employeeStatus,
 		String createdBy,
 		Instant createdAt,
 		boolean blocked,
@@ -38,6 +40,7 @@ public record ManagedUserResponse(
 				employee == null ? null : employee.getDepartment(),
 				employee == null ? null : employee.getJobTitle(),
 				employee == null ? null : employee.getPhone(),
+				employee == null ? null : employee.getStatus(),
 				user == null ? null : user.getCreatedBy(),
 				user == null ? null : user.getCreatedAt(),
 				user != null && user.isBlocked(),

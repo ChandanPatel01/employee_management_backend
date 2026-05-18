@@ -163,7 +163,7 @@ class EmployeeControllerIntegrationTests {
 						.header(HttpHeaders.AUTHORIZATION, authorization))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.message").value("Employee deactivated successfully."))
+				.andExpect(jsonPath("$.message").value("Employee and linked user account deactivated successfully."))
 				.andExpect(jsonPath("$.employee.status").value("INACTIVE"));
 
 		mockMvc.perform(get("/api/employees/{id}", savedEmployee.getId())
@@ -179,12 +179,24 @@ class EmployeeControllerIntegrationTests {
 		AppUser blockedUser = appUserRepository.findByEmployeeId(savedEmployee.getId()).orElseThrow();
 		org.assertj.core.api.Assertions.assertThat(blockedUser.isBlocked()).isTrue();
 
+		mockMvc.perform(get("/api/users")
+						.header(HttpHeaders.AUTHORIZATION, authorization))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.email == 'ada@example.com')]", hasSize(0)));
+
+		mockMvc.perform(get("/api/users")
+						.header(HttpHeaders.AUTHORIZATION, authorization)
+						.param("includeInactive", "true"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.email == 'ada@example.com')]", hasSize(1)))
+				.andExpect(jsonPath("$[?(@.email == 'ada@example.com')][0].employeeStatus").value("INACTIVE"));
+
 		AuthRequest loginRequest = new AuthRequest("ada@example.com", "password123");
 		mockMvc.perform(post("/api/auth/login")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(objectMapper.writeValueAsString(loginRequest)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(loginRequest)))
 				.andExpect(status().isForbidden())
-				.andExpect(jsonPath("$.message").value("Account is blocked. Please contact administrator."));
+				.andExpect(jsonPath("$.message").value("Your account is inactive. Please contact admin."));
 	}
 
 	@Test

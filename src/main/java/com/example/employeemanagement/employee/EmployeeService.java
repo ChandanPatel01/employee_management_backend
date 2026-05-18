@@ -145,7 +145,9 @@ public class EmployeeService {
 			employee.setEmployeeCode(generateEmployeeCode(employee));
 		}
 
-		return employeeRepository.save(employee);
+		Employee savedEmployee = employeeRepository.save(employee);
+		blockLinkedUserIfInactive(savedEmployee);
+		return savedEmployee;
 	}
 
 	public Employee updateEmployee(Long id, Employee updatedEmployee, long actorId) {
@@ -187,19 +189,18 @@ public class EmployeeService {
 			ensureCanDeactivate(actor, employee, linkedUser);
 		}
 
-		if (employee.getStatus() == EmploymentStatus.INACTIVE) {
-			return new EmployeeDeactivationResponse(
-					true,
-					"Employee is already inactive.",
-					EmployeeResponse.from(employee));
+		boolean alreadyInactive = employee.getStatus() == EmploymentStatus.INACTIVE;
+		if (!alreadyInactive) {
+			employee.setStatus(EmploymentStatus.INACTIVE);
 		}
 
-		employee.setStatus(EmploymentStatus.INACTIVE);
-		Employee savedEmployee = employeeRepository.save(employee);
+		Employee savedEmployee = alreadyInactive ? employee : employeeRepository.save(employee);
 		boolean linkedUserBlocked = linkedUser
 				.map((user) -> {
-					user.setBlocked(true);
-					appUserRepository.save(user);
+					if (!user.isBlocked()) {
+						user.setBlocked(true);
+						appUserRepository.save(user);
+					}
 					return true;
 				})
 				.orElse(false);
@@ -213,9 +214,13 @@ public class EmployeeService {
 					NotificationType.EMPLOYEE_DEACTIVATED);
 		}
 
+		String message = linkedUserBlocked
+				? "Employee and linked user account deactivated successfully."
+				: alreadyInactive ? "Employee is already inactive." : "Employee deactivated successfully.";
+
 		return new EmployeeDeactivationResponse(
 				true,
-				"Employee deactivated successfully.",
+				message,
 				EmployeeResponse.from(savedEmployee));
 	}
 
@@ -228,6 +233,19 @@ public class EmployeeService {
 		} while (employeeRepository.existsByEmployeeCode(employeeCode));
 
 		return employeeCode;
+	}
+
+	private void blockLinkedUserIfInactive(Employee employee) {
+		if (employee == null || employee.getStatus() != EmploymentStatus.INACTIVE) {
+			return;
+		}
+
+		appUserRepository.findByEmployeeId(employee.getId()).ifPresent((user) -> {
+			if (!user.isBlocked()) {
+				user.setBlocked(true);
+				appUserRepository.save(user);
+			}
+		});
 	}
 
 	private String initials(String firstName, String lastName) {

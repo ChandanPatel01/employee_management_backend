@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,8 +26,10 @@ public class UserManagementController {
 	}
 
 	@GetMapping
-	public List<ManagedUserResponse> getUsers(HttpServletRequest request) {
-		return userManagementService.getUsers(authenticatedUserId(request));
+	public List<ManagedUserResponse> getUsers(
+			@RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive,
+			HttpServletRequest request) {
+		return userManagementService.getUsers(authenticatedUserId(request), includeInactive);
 	}
 
 	@PostMapping
@@ -43,6 +46,11 @@ public class UserManagementController {
 	@PutMapping("/{id}/unblock")
 	public ManagedUserResponse unblockUser(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
 		return userManagementService.setUserBlocked(id, false, authenticatedUserId(servletRequest));
+	}
+
+	@PutMapping("/{id}/reactivate")
+	public ManagedUserResponse reactivateUser(@PathVariable("id") Long id, HttpServletRequest servletRequest) {
+		return userManagementService.reactivateUser(id, authenticatedUserId(servletRequest));
 	}
 
 	@PutMapping("/{id}/reset-password")

@@ -1,5 +1,6 @@
 package com.example.employeemanagement.auth;
 
+import com.example.employeemanagement.employee.EmploymentStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,10 +37,10 @@ public class AuthService {
 
 	public AuthResponse login(AuthRequest request) {
 		String email = normalizeEmail(request.email());
-		AppUser user = appUserRepository.findByEmail(email)
+		AppUser user = appUserRepository.findByEmailIgnoreCase(email)
 				.orElseThrow(InvalidCredentialsException::new);
 
-		if (user.isBlocked()) {
+		if (isInactive(user)) {
 			throw new AccountBlockedException();
 		}
 
@@ -94,5 +95,10 @@ public class AuthService {
 
 	private String normalizeEmail(String email) {
 		return email.trim().toLowerCase();
+	}
+
+	private boolean isInactive(AppUser user) {
+		return user.isBlocked()
+				|| (user.getEmployee() != null && user.getEmployee().getStatus() == EmploymentStatus.INACTIVE);
 	}
 }

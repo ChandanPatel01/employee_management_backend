@@ -12,6 +12,12 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
 	boolean existsByEmployeeId(Long employeeId);
 
+	@EntityGraph(attributePaths = "employee")
+	Optional<AppUser> findByEmailIgnoreCase(String email);
+
+	@EntityGraph(attributePaths = "employee")
+	List<AppUser> findByBlockedFalse();
+
 	@Override
 	@EntityGraph(attributePaths = "employee")
 	List<AppUser> findAll();

@@ -48,11 +48,18 @@ public class UserManagementService {
 
 	@Transactional(readOnly = true)
 	public List<ManagedUserResponse> getUsers(long actorId) {
+		return getUsers(actorId, false);
+	}
+
+	@Transactional(readOnly = true)
+	public List<ManagedUserResponse> getUsers(long actorId, boolean includeInactive) {
 		AppUser actor = getActor(actorId);
 		ensureCanCreateUsers(actor.getRole());
 		boolean includePasswordTracking = canViewPasswordTracking(actor.getRole());
+		List<AppUser> users = includeInactive ? appUserRepository.findAll() : appUserRepository.findByBlockedFalse();
 
-		return appUserRepository.findAll().stream()
+		return users.stream()
+				.filter((user) -> includeInactive || !isInactive(user))
 				.map((user) -> ManagedUserResponse.from(user, includePasswordTracking))
 				.toList();
 	}
@@ -98,6 +105,22 @@ public class UserManagementService {
 
 		user.setBlocked(blocked);
 		return ManagedUserResponse.from(appUserRepository.save(user), true);
+	}
+
+	public ManagedUserResponse reactivateUser(Long userId, long actorId) {
+		AppUser actor = getActor(actorId);
+		ensureCanCreateUsers(actor.getRole());
+		AppUser user = getTargetUser(userId);
+		ensureCanCreateRole(actor.getRole(), user.getRole());
+
+		Employee employee = user.getEmployee();
+		if (employee != null && employee.getStatus() == EmploymentStatus.INACTIVE) {
+			employee.setStatus(EmploymentStatus.ACTIVE);
+			employeeRepository.save(employee);
+		}
+
+		user.setBlocked(false);
+		return ManagedUserResponse.from(appUserRepository.saveAndFlush(user), canViewPasswordTracking(actor.getRole()));
 	}
 
 	public ManagedUserResponse resetUserPassword(Long userId, String temporaryPassword, long actorId) {
@@ -193,20 +216,30 @@ public class UserManagementService {
 	}
 
 	private void ensureEmailHasNoLogin(String email) {
-		if (appUserRepository.existsByEmail(email)) {
+		appUserRepository.findByEmailIgnoreCase(email).ifPresent((user) -> {
+			if (isInactive(user)) {
+				throw DuplicateUserEmailException.inactiveAccount();
+			}
 			throw new DuplicateUserEmailException(email);
-		}
+		});
 	}
 
 	private void ensureEmployeeHasNoLogin(Employee employee) {
-		if (employee.getId() != null && appUserRepository.existsByEmployeeId(employee.getId())) {
-			throw new UserManagementException("This employee already has a login account.");
+		if (employee.getId() != null) {
+			appUserRepository.findByEmployeeId(employee.getId()).ifPresent((user) -> {
+				if (isInactive(user)) {
+					throw DuplicateUserEmailException.inactiveAccount();
+				}
+				throw new UserManagementException("This employee already has a login account.");
+			});
 		}
 	}
 
 	private Employee resolveEmployee(CreateUserRequest request, UserRole role) {
 		if (request.employeeId() != null) {
-			return employeeService.getEmployee(request.employeeId());
+			Employee employee = employeeService.getEmployee(request.employeeId());
+			ensureEmployeeIsActive(employee);
+			return employee;
 		}
 
 		if (request.employee() != null) {
@@ -215,6 +248,10 @@ public class UserManagementService {
 
 		String email = normalizeEmail(requireValue(request.email(), "Employee email is required."));
 		return employeeRepository.findByEmailIgnoreCase(email)
+				.map((employee) -> {
+					ensureEmployeeIsActive(employee);
+					return employee;
+				})
 				.orElseGet(() -> createMinimalEmployeeProfile(request.name(), email, role));
 	}
 
@@ -258,6 +295,17 @@ public class UserManagementService {
 		}
 
 		return value.trim();
+	}
+
+	private void ensureEmployeeIsActive(Employee employee) {
+		if (employee != null && employee.getStatus() == EmploymentStatus.INACTIVE) {
+			throw new UserManagementException("This employee profile is inactive. Please reactivate it before creating login access.");
+		}
+	}
+
+	private boolean isInactive(AppUser user) {
+		return user.isBlocked()
+				|| (user.getEmployee() != null && user.getEmployee().getStatus() == EmploymentStatus.INACTIVE);
 	}
 
 	private String clean(String value) {
